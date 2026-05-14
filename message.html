@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cheers Mate - 私信</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #F7F8FA;
+    --card: #FFFFFF;
+    --primary: #6C5CE7;
+    --primary-light: #A29BFE;
+    --primary-bg: #F0EEFF;
+    --green: #00B894;
+    --green-bg: #E8FBF5;
+    --orange: #FDCB6E;
+    --orange-bg: #FFF8E1;
+    --red: #FF6B6B;
+    --red-bg: #FFF0F0;
+    --text: #2D3436;
+    --text-secondary: #636E72;
+    --text-muted: #B2BEC3;
+    --border: #E8ECF0;
+    --shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 420px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* ========== View Switch ========== */
+  .view { display: none; min-height: 100vh; }
+  .view.active { display: flex; flex-direction: column; }
+
+  /* ========== Conversation List ========== */
+  .list-header {
+    background: var(--card);
+    padding: 16px 20px 12px;
+    position: sticky; top: 0; z-index: 10;
+    border-bottom: 1px solid var(--border);
+  }
+  .list-header h1 {
+    font-size: 22px; font-weight: 700; margin-bottom: 12px;
+  }
+  .search-bar {
+    background: var(--bg);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .conv-list { flex: 1; overflow-y: auto; }
+
+  .conv-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 20px;
+    background: var(--card);
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+  }
+  .conv-item:hover { background: #FAFBFC; }
+  .conv-item + .conv-item { border-top: 1px solid var(--border); }
+
+  .avatar-wrap { position: relative; flex-shrink: 0; }
+  .avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    object-fit: cover; background: var(--primary-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--primary);
+    overflow: hidden;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .online-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--green); border: 2px solid var(--card);
+    position: absolute; bottom: 1px; right: 1px;
+  }
+  .group-badge {
+    position: absolute; top: -2px; right: -4px;
+    background: var(--primary); color: #fff;
+    font-size: 9px; padding: 1px 5px; border-radius: 8px;
+  }
+
+  .conv-info { flex: 1; min-width: 0; }
+  .conv-top { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .conv-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conv-tag {
+    font-size: 10px; padding: 1px 6px; border-radius: 6px;
+    white-space: nowrap;
+  }
+  .tag-buddy { background: var(--primary-bg); color: var(--primary); }
+  .tag-group { background: var(--green-bg); color: var(--green); }
+  .tag-system { background: var(--orange-bg); color: #E17055; }
+  .conv-msg {
+    font-size: 13px; color: var(--text-secondary);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .conv-meta { flex-shrink: 0; text-align: right; }
+  .conv-time { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+  .unread-badge {
+    background: var(--red); color: #fff;
+    font-size: 11px; font-weight: 600;
+    min-width: 18px; height: 18px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center;
+    padding: 0 5px;
+  }
+
+  /* group item extra */
+  .conv-item.group-item { background: #FCFEFB; }
+  .conv-item.system-item { background: #FFFCF5; }
+  .group-dissolve-hint {
+    font-size: 11px; color: var(--text-muted); margin-top: 2px;
+  }
+
+  /* ========== Chat Detail ========== */
+  .chat-header {
+    background: var(--card);
+    padding: 12px 16px;
+    display: flex; align-items: center; gap: 10px;
+    position: sticky; top: 0; z-index: 10;
+    border-bottom: 1px solid var(--border);
+  }
+  .chat-back {
+    width: 32px; height: 32px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: background 0.15s;
+    font-size: 18px; color: var(--text-secondary);
+  }
+  .chat-back:hover { background: var(--bg); }
+  .chat-user-info { flex: 1; }
+  .chat-user-name { font-size: 16px; font-weight: 600; }
+  .chat-user-status { font-size: 11px; color: var(--green); }
+  .chat-more {
+    width: 32px; height: 32px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; color: var(--text-muted);
+  }
+  .chat-more:hover { background: var(--bg); }
+
+  /* activity banner */
+  .activity-banner {
+    margin: 10px 16px;
+    background: var(--card);
+    border-radius: 14px;
+    padding: 12px 14px;
+    display: flex; align-items: center; gap: 12px;
+    border: 1px solid var(--border);
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+  }
+  .activity-banner:hover { box-shadow: 0 2px 8px rgba(108,92,231,0.1); }
+  .activity-thumb {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: var(--primary-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .activity-banner-info { flex: 1; min-width: 0; }
+  .activity-banner-title { font-size: 13px; font-weight: 600; }
+  .activity-banner-time { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+  .activity-banner-arrow { color: var(--text-muted); font-size: 14px; }
+  .banner-collapse {
+    font-size: 11px; color: var(--primary); cursor: pointer;
+    text-align: center; padding: 4px 0;
+  }
+
+  /* AI icebreaker */
+  .icebreaker {
+    margin: 0 16px 10px;
+    background: linear-gradient(135deg, #F0EEFF 0%, #E8FBF5 100%);
+    border-radius: 14px;
+    padding: 14px;
+  }
+  .icebreaker-label {
+    font-size: 11px; color: var(--primary); font-weight: 600;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .icebreaker-suggestion {
+    background: var(--card);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .icebreaker-suggestion:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.06); }
+  .icebreaker-suggestion:last-child { margin-bottom: 0; }
+  .ice-icon { font-size: 16px; flex-shrink: 0; }
+  .ice-text { flex: 1; }
+  .ice-send {
+    font-size: 11px; color: var(--primary);
+    font-weight: 600; white-space: nowrap;
+  }
+  .icebreaker-dismiss {
+    font-size: 11px; color: var(--text-muted);
+    text-align: center; margin-top: 8px; cursor: pointer;
+  }
+
+  /* chat messages */
+  .chat-body {
+    flex: 1; overflow-y: auto;
+    padding: 8px 16px 16px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  .msg-time-divider {
+    text-align: center;
+    font-size: 11px; color: var(--text-muted);
+    padding: 6px 0;
+  }
+
+  .msg-row {
+    display: flex; gap: 8px;
+    max-width: 85%;
+  }
+  .msg-row.self {
+    align-self: flex-end;
+    flex-direction: row-reverse;
+  }
+  .msg-row.other { align-self: flex-start; }
+
+  .msg-avatar-sm {
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--primary-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0; color: var(--primary);
+  }
+  .msg-avatar-sm.me {
+    background: var(--green-bg); color: var(--green);
+  }
+
+  .msg-bubble {
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 14px;
+    line-height: 1.5;
+    position: relative;
+  }
+  .msg-row.other .msg-bubble {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+  }
+  .msg-row.self .msg-bubble {
+    background: var(--primary);
+    color: #fff;
+    border-top-right-radius: 4px;
+  }
+
+  .msg-bubble.system {
+    background: var(--bg);
+    color: var(--text-secondary);
+    font-size: 12px;
+    text-align: center;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 16px;
+    align-self: center;
+    max-width: 90%;
+  }
+
+  /* activity card in chat */
+  .msg-activity-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 12px;
+    min-width: 220px;
+  }
+  .msg-activity-card .card-top {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  .msg-activity-card .card-icon {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: var(--primary-bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .msg-activity-card .card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .msg-activity-card .card-time { font-size: 11px; color: var(--text-muted); }
+  .msg-activity-card .card-join {
+    display: inline-block;
+    background: var(--primary);
+    color: #fff;
+    font-size: 12px;
+    padding: 5px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .msg-activity-card .card-join:hover { opacity: 0.9; }
+
+  /* location message */
+  .msg-location {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    min-width: 200px;
+  }
+  .msg-location .map-placeholder {
+    height: 100px;
+    background: linear-gradient(135deg, #DFE6E9 0%, #B2BEC3 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; color: #fff;
+  }
+  .msg-location .loc-info { padding: 10px 12px; }
+  .msg-location .loc-name { font-size: 13px; font-weight: 600; color: var(--text); }
+  .msg-location .loc-addr { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  /* input area */
+  .chat-input-area {
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 10px 16px;
+  }
+  .safety-hint {
+    font-size: 11px; color: var(--orange);
+    text-align: center;
+    padding: 4px 0 8px;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .input-row {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .input-plus {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--text-secondary);
+    cursor: pointer; flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .input-plus:hover { background: var(--border); }
+  .input-field {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 9px 16px;
+    font-size: 14px;
+    outline: none;
+    font-family: inherit;
+    resize: none;
+    height: 38px;
+    line-height: 20px;
+  }
+  .input-field:focus { border-color: var(--primary-light); }
+  .input-emoji {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; cursor: pointer; flex-shrink: 0;
+  }
+  .input-send {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: opacity 0.15s;
+  }
+  .input-send:hover { opacity: 0.9; }
+
+  /* plus menu */
+  .plus-menu {
+    display: none;
+    padding: 12px 16px 4px;
+    gap: 0;
+  }
+  .plus-menu.show { display: flex; flex-wrap: wrap; }
+  .plus-item {
+    width: 25%;
+    display: flex; flex-direction: column; align-items: center;
+    gap: 6px; padding: 8px 0; cursor: pointer;
+  }
+  .plus-item:hover .plus-icon { background: var(--primary-bg); }
+  .plus-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; transition: background 0.15s;
+  }
+  .plus-label { font-size: 11px; color: var(--text-secondary); }
+
+  /* bottom tab (only on list view) */
+  .bottom-tab {
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex; padding: 6px 0 env(safe-area-inset-bottom);
+    position: sticky; bottom: 0;
+  }
+  .tab-item {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; gap: 2px; padding: 4px 0;
+    cursor: pointer; color: var(--text-muted);
+    font-size: 10px; transition: color 0.15s;
+  }
+  .tab-item.active { color: var(--primary); }
+  .tab-icon { font-size: 22px; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ==================== View 1: Conversation List ==================== -->
+<div class="view active" id="listView">
+  <div class="list-header">
+    <h1>私信</h1>
+    <div class="search-bar">
+      <span>🔍</span> 搜索聊天记录 / 联系人
+    </div>
+  </div>
+
+  <div class="conv-list">
+    <!-- System message -->
+    <div class="conv-item system-item" onclick="openChat('system')">
+      <div class="avatar-wrap">
+        <div class="avatar" style="background:#FFF3E0;color:#E17055;">🔔</div>
+      </div>
+      <div class="conv-info">
+        <div class="conv-top">
+          <span class="conv-name">系统通知</span>
+          <span class="conv-tag tag-system">系统</span>
+        </div>
+        <div class="conv-msg">你报名的「周末羽毛球局」已确认成局 🎉</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">刚刚</div>
+        <div class="unread-badge">2</div>
+      </div>
+    </div>
+
+    <!-- 1:1 chat with unread -->
+    <div class="conv-item" onclick="openChat('linyu')">
+      <div class="avatar-wrap">
+        <div class="avatar">🦊</div>
+        <div class="online-dot"></div>
+      </div>
+      <div class="conv-info">
+        <div class="conv-top">
+          <span class="conv-name">林语</span>
+          <span class="conv-tag tag-buddy">3次搭子</span>
+        </div>
+        <div class="conv-msg">周六下午那个羽毛球局还能加人吗？</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">10:32</div>
+        <div class="unread-badge">1</div>
+      </div>
+    </div>
+
+    <!-- Group chat -->
+    <div class="conv-item group-item" onclick="openChat('group')">
+      <div class="avatar-wrap">
+        <div class="avatar" style="background:var(--green-bg);color:var(--green);">🏸</div>
+        <span class="group-badge">群</span>
+      </div>
+      <div class="conv-info">
+        <div class="conv-top">
+          <span class="conv-name">周末羽毛球局</span>
+          <span class="conv-tag tag-group">临时群聊</span>
+        </div>
+        <div class="conv-msg">陈默：我带球拍和球！</div>
+        <div class="group-dissolve-hint">活动结束后48h自动解散</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">09:45</div>
+      </div>
+    </div>
+
+    <!-- 1:1 chat no unread -->
+    <div class="conv-item" onclick="openChat('chenmo')">
+      <div class="avatar-wrap">
+        <div class="avatar">🐱</div>
+      </div>
+      <div class="conv-info">
+        <div class="conv-top">
+          <span class="conv-name">陈默</span>
+          <span class="conv-tag tag-buddy">1次搭子</span>
+        </div>
+        <div class="conv-msg">好的那我们周六见！</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">昨天</div>
+      </div>
+    </div>
+
+    <div class="conv-item" onclick="openChat('xiaowen')">
+      <div class="avatar-wrap">
+        <div class="avatar">🌸</div>
+      </div>
+      <div class="conv-info">
+        <div class="conv-top">
+          <span class="conv-name">小温</span>
+          <span class="conv-tag tag-buddy">5次搭子</span>
+        </div>
+        <div class="conv-msg">上次那个日料店叫什么来着</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">周三</div>
+      </div>
+    </div>
+
+    <div class="conv-item" onclick="openChat('akira')">
+      <div class="avatar-wrap">
+        <div class="avatar">🎵</div>
+      </div>
+      <div class="conv-info">
+        <div class="conv-top">
+          <span class="conv-name">Akira</span>
+          <span class="conv-tag tag-buddy">首次</span>
+        </div>
+        <div class="conv-msg">Hi! 看到你发了K歌的帖子~</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">周一</div>
+      </div>
+    </div>
+
+    <div class="conv-item group-item" onclick="openChat('group2')">
+      <div class="avatar-wrap">
+        <div class="avatar" style="background:var(--green-bg);color:var(--green);">🍻</div>
+        <span class="group-badge">群</span>
+      </div>
+      <div class="conv-info">
+        <div class="conv-top">
+          <span class="conv-name">周五微醺局</span>
+          <span class="conv-tag tag-group">临时群聊</span>
+        </div>
+        <div class="conv-msg">Leo：哪家精酿来着？</div>
+        <div class="group-dissolve-hint">已解散</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">5/3</div>
+      </div>
+    </div>
+
+    <div class="conv-item" onclick="openChat('momo')">
+      <div class="avatar-wrap">
+        <div class="avatar">🌴</div>
+      </div>
+      <div class="conv-info">
+        <div class="conv-top">
+          <span class="conv-name">墨墨</span>
+          <span class="conv-tag tag-buddy">2次搭子</span>
+        </div>
+        <div class="conv-msg">下次一起约个徒步吧 🥾</div>
+      </div>
+      <div class="conv-meta">
+        <div class="conv-time">4/28</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-tab">
+    <div class="tab-item">
+      <span class="tab-icon">🏠</span>首页
+    </div>
+    <div class="tab-item">
+      <span class="tab-icon">🔍</span>发现
+    </div>
+    <div class="tab-item active">
+      <span class="tab-icon">💬</span>私信
+    </div>
+    <div class="tab-item">
+      <span class="tab-icon">👤</span>我的
+    </div>
+  </div>
+</div>
+
+<!-- ==================== View 2: Chat Detail ==================== -->
+<div class="view" id="chatView">
+  <div class="chat-header">
+    <div class="chat-back" onclick="goBack()">‹</div>
+    <div class="avatar" style="width:36px;height:36px;font-size:16px;">🦊</div>
+    <div class="chat-user-info">
+      <div class="chat-user-name">林语</div>
+      <div class="chat-user-status">在线</div>
+    </div>
+    <div class="chat-more">⋯</div>
+  </div>
+
+  <!-- Activity banner -->
+  <div class="activity-banner" id="activityBanner">
+    <div class="activity-thumb">🏸</div>
+    <div class="activity-banner-info">
+      <div class="activity-banner-title">周末羽毛球局</div>
+      <div class="activity-banner-time">05-10 周六 14:00 · 望京SOHO羽毛球馆</div>
+    </div>
+    <div class="activity-banner-arrow">›</div>
+  </div>
+  <div class="banner-collapse" onclick="collapseBanner()">收起关联活动</div>
+
+  <!-- AI Icebreaker -->
+  <div class="icebreaker" id="icebreaker">
+    <div class="icebreaker-label">💡 AI 破冰助手</div>
+    <div class="icebreaker-suggestion" onclick="sendIce(this)">
+      <span class="ice-icon">🏸</span>
+      <span class="ice-text">你们都喜欢羽毛球，可以聊聊最近看比赛了吗？</span>
+      <span class="ice-send">发送</span>
+    </div>
+    <div class="icebreaker-suggestion" onclick="sendIce(this)">
+      <span class="ice-icon">📍</span>
+      <span class="ice-text">Ta 刚参加了一次羽毛球局，可以问问体验如何</span>
+      <span class="ice-send">发送</span>
+    </div>
+    <div class="icebreaker-dismiss" onclick="dismissIce()">暂时不需要</div>
+  </div>
+
+  <!-- Chat messages -->
+  <div class="chat-body" id="chatBody">
+    <div class="msg-time-divider">今天 09:15</div>
+
+    <div class="msg-row other">
+      <div class="msg-avatar-sm">🦊</div>
+      <div class="msg-bubble">嗨！看到你也喜欢打羽毛球～</div>
+    </div>
+
+    <div class="msg-row self">
+      <div class="msg-avatar-sm me">😊</div>
+      <div class="msg-bubble">对呀！每周都打，最近在找搭子</div>
+    </div>
+
+    <div class="msg-row other">
+      <div class="msg-avatar-sm">🦊</div>
+      <div class="msg-bubble">正好！我周六组了个局，在望京那边，你要不要来？</div>
+    </div>
+
+    <!-- Activity card message -->
+    <div class="msg-row other">
+      <div class="msg-avatar-sm">🦊</div>
+      <div class="msg-activity-card">
+        <div class="card-top">
+          <div class="card-icon">🏸</div>
+          <div>
+            <div class="card-title">周末羽毛球局</div>
+            <div class="card-time">05-10 周六 14:00 · 3/6人</div>
+          </div>
+        </div>
+        <div class="card-join">查看活动</div>
+      </div>
+    </div>
+
+    <div class="msg-row self">
+      <div class="msg-avatar-sm me">😊</div>
+      <div class="msg-bubble">看起来不错！场地费AA吗？</div>
+    </div>
+
+    <div class="msg-row other">
+      <div class="msg-avatar-sm">🦊</div>
+      <div class="msg-bubble">对，AA下来大概35一人，场馆已经预约好了</div>
+    </div>
+
+    <!-- Location message -->
+    <div class="msg-row other">
+      <div class="msg-avatar-sm">🦊</div>
+      <div class="msg-location">
+        <div class="map-placeholder">📍</div>
+        <div class="loc-info">
+          <div class="loc-name">望京SOHO羽毛球馆</div>
+          <div class="loc-addr">朝阳区望京街9号望京SOHO T2 B1</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="msg-row self">
+      <div class="msg-avatar-sm me">😊</div>
+      <div class="msg-bubble">离我很近！我加入 👍</div>
+    </div>
+
+    <div class="msg-bubble system">🎉 你们已成功组局！活动前1小时会提醒你哦</div>
+
+    <div class="msg-time-divider">10:32</div>
+
+    <div class="msg-row other">
+      <div class="msg-avatar-sm">🦊</div>
+      <div class="msg-bubble">周六下午那个羽毛球局还能加人吗？</div>
+    </div>
+  </div>
+
+  <!-- Input area -->
+  <div class="chat-input-area">
+    <div class="safety-hint">⚠️ 请勿在聊天中转账，注意保护个人隐私</div>
+    <div class="input-row">
+      <div class="input-plus" onclick="togglePlus()">＋</div>
+      <input class="input-field" id="msgInput" type="text" placeholder="说点什么..." onkeydown="if(event.key==='Enter')sendMessage()">
+      <div class="input-emoji">😊</div>
+      <button class="input-send" onclick="sendMessage()">发送</button>
+    </div>
+    <div class="plus-menu" id="plusMenu">
+      <div class="plus-item">
+        <div class="plus-icon">📷</div>
+        <span class="plus-label">拍照</span>
+      </div>
+      <div class="plus-item">
+        <div class="plus-icon">🖼️</div>
+        <span class="plus-label">相册</span>
+      </div>
+      <div class="plus-item">
+        <div class="plus-icon">📍</div>
+        <span class="plus-label">位置</span>
+      </div>
+      <div class="plus-item">
+        <div class="plus-icon">🎯</div>
+        <span class="plus-label">分享活动</span>
+      </div>
+      <div class="plus-item">
+        <div class="plus-icon">📅</div>
+        <span class="plus-label">发起邀约</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function openChat(id) {
+    document.getElementById('listView').classList.remove('active');
+    document.getElementById('chatView').classList.add('active');
+  }
+
+  function goBack() {
+    document.getElementById('chatView').classList.remove('active');
+    document.getElementById('listView').classList.add('active');
+    document.getElementById('plusMenu').classList.remove('show');
+  }
+
+  function togglePlus() {
+    document.getElementById('plusMenu').classList.toggle('show');
+  }
+
+  function sendMessage() {
+    const input = document.getElementById('msgInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+
+    const chatBody = document.getElementById('chatBody');
+    const row = document.createElement('div');
+    row.className = 'msg-row self';
+    row.innerHTML = `
+      <div class="msg-avatar-sm me">😊</div>
+      <div class="msg-bubble">${escapeHtml(text)}</div>
+    `;
+    chatBody.appendChild(row);
+    chatBody.scrollTop = chatBody.scrollHeight;
+
+    // hide plus menu
+    document.getElementById('plusMenu').classList.remove('show');
+  }
+
+  function sendIce(el) {
+    const text = el.querySelector('.ice-text').textContent;
+    const chatBody = document.getElementById('chatBody');
+    const row = document.createElement('div');
+    row.className = 'msg-row self';
+    row.innerHTML = `
+      <div class="msg-avatar-sm me">😊</div>
+      <div class="msg-bubble">${escapeHtml(text)}</div>
+    `;
+    chatBody.appendChild(row);
+    chatBody.scrollTop = chatBody.scrollHeight;
+    dismissIce();
+  }
+
+  function dismissIce() {
+    document.getElementById('icebreaker').style.display = 'none';
+  }
+
+  function collapseBanner() {
+    const banner = document.getElementById('activityBanner');
+    banner.style.display = 'none';
+    document.querySelector('.banner-collapse').style.display = 'none';
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // scroll chat to bottom on load
+  window.addEventListener('load', () => {
+    const body = document.getElementById('chatBody');
+    body.scrollTop = body.scrollHeight;
+  });
+</script>
+
+</body>
+</html>

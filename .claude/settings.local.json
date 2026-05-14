@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:bytedance.larkoffice.com)",
+      "Bash(lark-cli wiki *)",
+      "Bash(lark-cli api *)",
+      "Bash(lark-cli docs +create --api-version v2 --content '<title>活动详情页（组织者视角）设计</title> *)",
+      "Bash(lark-cli docs *)",
+      "Bash(open /Users/bytedance/Projects/Dazi/message.html)",
+      "Bash(open /Users/bytedance/Projects/Dazi/detail-participant.html)",
+      "Bash(open /Users/bytedance/Projects/Dazi/detail-organizer.html)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}

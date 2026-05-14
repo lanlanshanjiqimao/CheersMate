@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cheers Mate - 活动详情（参与者）</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --bg: #F7F8FA;
+    --card: #FFFFFF;
+    --primary: #6C5CE7;
+    --primary-light: #A29BFE;
+    --primary-bg: #F0EEFF;
+    --green: #00B894;
+    --green-bg: #E8FBF5;
+    --orange: #FDCB6E;
+    --orange-bg: #FFF8E1;
+    --red: #FF6B6B;
+    --red-bg: #FFF0F0;
+    --text: #2D3436;
+    --text-secondary: #636E72;
+    --text-muted: #B2BEC3;
+    --border: #E8ECF0;
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', sans-serif;
+    background: var(--bg); color: var(--text);
+    max-width: 420px; margin: 0 auto; min-height: 100vh;
+  }
+
+  /* Nav */
+  .top-nav {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-btn {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; color: var(--text-secondary);
+    transition: background 0.15s;
+  }
+  .nav-btn:hover { background: var(--bg); }
+  .nav-actions { display: flex; gap: 4px; }
+
+  /* Hero */
+  .hero {
+    position: relative; width: 100%; aspect-ratio: 16/10;
+    background: linear-gradient(135deg, #6C5CE7 0%, #A29BFE 50%, #74B9FF 100%);
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .hero-emoji { font-size: 72px; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.15)); }
+  .hero-dots {
+    position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 6px;
+  }
+  .hero-dot {
+    width: 6px; height: 6px; border-radius: 3px;
+    background: rgba(255,255,255,0.4); transition: all 0.2s;
+  }
+  .hero-dot.active { width: 18px; background: #fff; }
+  .status-tag {
+    position: absolute; top: 12px; left: 12px;
+    background: var(--green); color: #fff;
+    font-size: 11px; font-weight: 600; padding: 4px 10px;
+    border-radius: 8px;
+  }
+  .status-tag.full { background: var(--orange); }
+  .status-tag.ended { background: var(--text-muted); }
+
+  /* Info Card */
+  .info-card {
+    background: var(--card); margin: -20px 16px 0;
+    border-radius: 16px; padding: 20px;
+    position: relative; z-index: 5;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .info-title {
+    font-size: 20px; font-weight: 700; line-height: 1.3; margin-bottom: 10px;
+  }
+  .info-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+  .info-tag {
+    font-size: 12px; padding: 3px 10px; border-radius: 6px;
+    background: var(--primary-bg); color: var(--primary); font-weight: 500;
+  }
+  .info-tag.loc { background: var(--green-bg); color: var(--green); }
+  .info-tag.price { background: var(--orange-bg); color: #E17055; }
+  .info-tag.limit { background: var(--red-bg); color: var(--red); }
+
+  .info-rows { display: flex; flex-direction: column; gap: 10px; }
+  .info-row {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 14px; color: var(--text-secondary);
+  }
+  .info-row-icon { font-size: 16px; width: 22px; text-align: center; }
+  .info-row-label { color: var(--text-muted); font-size: 12px; margin-right: 2px; }
+  .info-row-value { color: var(--text); font-weight: 500; }
+
+  .people-progress {
+    margin-top: 4px; display: flex; align-items: center; gap: 8px;
+  }
+  .progress-bar {
+    flex: 1; height: 6px; border-radius: 3px; background: var(--bg);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 3px; background: var(--green);
+    transition: width 0.3s;
+  }
+  .progress-text { font-size: 12px; color: var(--green); font-weight: 600; white-space: nowrap; }
+
+  /* Organizer */
+  .organizer-bar {
+    display: flex; align-items: center; gap: 12px;
+    padding: 16px; margin: 12px 16px;
+    background: var(--card); border-radius: 14px;
+  }
+  .organizer-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--primary-bg); display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .organizer-info { flex: 1; }
+  .organizer-name { font-size: 15px; font-weight: 600; }
+  .organizer-cred {
+    font-size: 12px; color: var(--text-secondary); margin-top: 2px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .cred-star { color: var(--orange); }
+  .organizer-arrow { color: var(--text-muted); font-size: 16px; }
+
+  /* Avatar wall */
+  .avatar-wall {
+    padding: 16px; margin: 0 16px 12px;
+    background: var(--card); border-radius: 14px;
+  }
+  .wall-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .wall-title { font-size: 14px; font-weight: 600; }
+  .wall-hint { font-size: 12px; color: var(--green); font-weight: 500; }
+  .wall-avatars { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+  .wall-user {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    flex-shrink: 0; cursor: pointer;
+  }
+  .wall-pic {
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .wall-name { font-size: 11px; color: var(--text-secondary); max-width: 50px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wall-more {
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--bg); display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; color: var(--primary);
+  }
+
+  /* Description */
+  .desc-card {
+    padding: 16px; margin: 0 16px 12px;
+    background: var(--card); border-radius: 14px;
+  }
+  .desc-title { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+  .desc-text {
+    font-size: 14px; line-height: 1.7; color: var(--text-secondary);
+  }
+  .desc-text p + p { margin-top: 8px; }
+
+  /* Comments */
+  .comment-section {
+    padding: 16px; margin: 0 16px 100px;
+    background: var(--card); border-radius: 14px;
+  }
+  .comment-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 14px;
+  }
+  .comment-title { font-size: 14px; font-weight: 600; }
+  .comment-count { font-size: 12px; color: var(--text-muted); }
+
+  .comment-item {
+    display: flex; gap: 10px; padding: 10px 0;
+  }
+  .comment-item + .comment-item { border-top: 1px solid var(--border); }
+  .comment-avatar {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .comment-body { flex: 1; }
+  .comment-meta {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 4px;
+  }
+  .comment-name { font-size: 13px; font-weight: 600; }
+  .comment-time { font-size: 11px; color: var(--text-muted); }
+  .comment-text { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+  .comment-actions {
+    display: flex; gap: 12px; margin-top: 6px;
+  }
+  .comment-action {
+    font-size: 11px; color: var(--text-muted); cursor: pointer;
+    display: flex; align-items: center; gap: 3px;
+  }
+
+  .comment-input-row {
+    display: flex; gap: 8px; margin-top: 14px; padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .comment-input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 20px; padding: 8px 14px; font-size: 13px;
+    outline: none; font-family: inherit;
+  }
+  .comment-input:focus { border-color: var(--primary-light); }
+  .comment-send {
+    background: var(--primary); color: #fff; border: none;
+    border-radius: 20px; padding: 8px 14px; font-size: 13px;
+    font-weight: 600; cursor: pointer;
+  }
+
+  /* Bottom bar */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+    width: 100%; max-width: 420px;
+    background: var(--card); border-top: 1px solid var(--border);
+    padding: 10px 16px; display: flex; align-items: center; gap: 10px;
+    z-index: 20;
+  }
+  .bar-action {
+    width: 42px; height: 42px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; cursor: pointer; background: var(--bg);
+    transition: background 0.15s;
+  }
+  .bar-action:hover { background: var(--border); }
+  .btn-join {
+    flex: 1; background: var(--primary); color: #fff;
+    border: none; border-radius: 12px; padding: 13px 0;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .btn-join:hover { opacity: 0.9; }
+  .btn-join.joined {
+    background: var(--bg); color: var(--green);
+    border: 2px solid var(--green);
+  }
+  .btn-join.disabled {
+    background: var(--border); color: var(--text-muted);
+    cursor: not-allowed;
+  }
+  .btn-msg {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: var(--green-bg); color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-msg:hover { background: #D0F5E8; }
+
+  /* Join modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.35);
+    display: none; align-items: flex-end; justify-content: center;
+    z-index: 100;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 20px 20px 0 0;
+    width: 100%; max-width: 420px; padding: 24px 20px;
+    animation: slideUp 0.25s ease;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .modal-handle {
+    width: 36px; height: 4px; border-radius: 2px; background: var(--border);
+    margin: 0 auto 16px;
+  }
+  .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; text-align: center; }
+  .modal-summary {
+    background: var(--bg); border-radius: 12px; padding: 14px;
+    margin-bottom: 20px;
+  }
+  .modal-row {
+    display: flex; justify-content: space-between; font-size: 14px;
+    padding: 6px 0; color: var(--text-secondary);
+  }
+  .modal-row .val { font-weight: 600; color: var(--text); }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-cancel {
+    flex: 1; padding: 13px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--card); font-size: 15px; font-weight: 600;
+    cursor: pointer; color: var(--text-secondary);
+  }
+  .modal-confirm {
+    flex: 1; padding: 13px; border-radius: 12px; border: none;
+    background: var(--primary); color: #fff; font-size: 15px;
+    font-weight: 600; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<!-- Top Nav -->
+<div class="top-nav">
+  <div class="nav-btn">‹</div>
+  <div class="nav-actions">
+    <div class="nav-btn">↗</div>
+    <div class="nav-btn">⋯</div>
+  </div>
+</div>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-emoji">🏸</div>
+  <div class="status-tag">报名中</div>
+  <div class="hero-dots">
+    <div class="hero-dot active"></div>
+    <div class="hero-dot"></div>
+    <div class="hero-dot"></div>
+  </div>
+</div>
+
+<!-- Info Card -->
+<div class="info-card">
+  <div class="info-title">周末羽毛球局</div>
+  <div class="info-tags">
+    <span class="info-tag">运动</span>
+    <span class="info-tag">羽毛球</span>
+    <span class="info-tag loc">周末</span>
+  </div>
+  <div class="info-rows">
+    <div class="info-row">
+      <span class="info-row-icon">📅</span>
+      <span class="info-row-label">时间</span>
+      <span class="info-row-value">2026-05-10 周六 14:00-16:00</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row-icon">📍</span>
+      <span class="info-row-label">地点</span>
+      <span class="info-row-value">望京SOHO 羽毛球馆</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row-icon">👥</span>
+      <span class="info-row-label">人数</span>
+      <span class="info-row-value">3 / 6人</span>
+    </div>
+    <div class="people-progress">
+      <div class="progress-bar"><div class="progress-fill" style="width:50%"></div></div>
+      <div class="progress-text">还差3人成局</div>
+    </div>
+    <div class="info-row">
+      <span class="info-row-icon">💰</span>
+      <span class="info-row-label">费用</span>
+      <span class="info-row-value">¥35/人（AA）</span>
+    </div>
+    <div class="info-row">
+      <span class="info-row-icon">🏷️</span>
+      <span class="info-row-label">要求</span>
+      <span class="info-row-value">不限</span>
+    </div>
+  </div>
+</div>
+
+<!-- Organizer -->
+<div class="organizer-bar">
+  <div class="organizer-avatar">🦊</div>
+  <div class="organizer-info">
+    <div class="organizer-name">林语</div>
+    <div class="organizer-cred">
+      <span class="cred-star">⭐</span> 4.9 · 已完成12次搭子活动
+    </div>
+  </div>
+  <div class="organizer-arrow">›</div>
+</div>
+
+<!-- Avatar Wall -->
+<div class="avatar-wall">
+  <div class="wall-header">
+    <span class="wall-title">已报名搭子</span>
+    <span class="wall-hint">已有3人加入，还差1人成局</span>
+  </div>
+  <div class="wall-avatars">
+    <div class="wall-user">
+      <div class="wall-pic" style="background:var(--primary-bg)">🐱</div>
+      <span class="wall-name">陈默</span>
+    </div>
+    <div class="wall-user">
+      <div class="wall-pic" style="background:var(--green-bg)">🌸</div>
+      <span class="wall-name">小温</span>
+    </div>
+    <div class="wall-user">
+      <div class="wall-pic" style="background:var(--orange-bg)">🎵</div>
+      <span class="wall-name">Akira</span>
+    </div>
+    <div class="wall-user">
+      <div class="wall-more">+3</div>
+      <span class="wall-name">更多</span>
+    </div>
+  </div>
+</div>
+
+<!-- Description -->
+<div class="desc-card">
+  <div class="desc-title">活动详情</div>
+  <div class="desc-text">
+    <p>周六下午来打羽毛球吧！场地已预约好，费用AA大约35元/人。</p>
+    <p><b>活动安排：</b><br>14:00 集合签到<br>14:15 热身+双打轮换<br>15:45 自由交流</p>
+    <p><b>注意事项：</b><br>请穿运动鞋，自带水杯。球拍可以不带，场地有租借。</p>
+    <p><b>对搭子的期望：</b><br>希望有一定基础，能持续对拉5回合以上～</p>
+  </div>
+</div>
+
+<!-- Comments -->
+<div class="comment-section">
+  <div class="comment-header">
+    <span class="comment-title">评论区</span>
+    <span class="comment-count">3条评论</span>
+  </div>
+
+  <div class="comment-item">
+    <div class="comment-avatar" style="background:var(--green-bg)">🐱</div>
+    <div class="comment-body">
+      <div class="comment-meta">
+        <span class="comment-name">陈默</span>
+        <span class="comment-time">2小时前</span>
+      </div>
+      <div class="comment-text">期待！我带球拍和球 🏸</div>
+      <div class="comment-actions">
+        <span class="comment-action">👍 2</span>
+        <span class="comment-action">回复</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="comment-item">
+    <div class="comment-avatar" style="background:var(--orange-bg)">🌸</div>
+    <div class="comment-body">
+      <div class="comment-meta">
+        <span class="comment-name">小温</span>
+        <span class="comment-time">5小时前</span>
+      </div>
+      <div class="comment-text">好久没打了，正好练练手～</div>
+      <div class="comment-actions">
+        <span class="comment-action">👍 1</span>
+        <span class="comment-action">回复</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="comment-item">
+    <div class="comment-avatar" style="background:var(--primary-bg)">🌴</div>
+    <div class="comment-body">
+      <div class="comment-meta">
+        <span class="comment-name">墨墨</span>
+        <span class="comment-time">昨天</span>
+      </div>
+      <div class="comment-text">望京有点远…下次在国贸组一个呗</div>
+      <div class="comment-actions">
+        <span class="comment-action">👍 3</span>
+        <span class="comment-action">回复</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="comment-input-row">
+    <input class="comment-input" type="text" placeholder="说点什么...">
+    <button class="comment-send">发送</button>
+  </div>
+</div>
+
+<!-- Bottom Bar -->
+<div class="bottom-bar">
+  <div class="bar-action" title="收藏">🤍</div>
+  <button class="btn-join" id="joinBtn" onclick="showJoinModal()">我要加入</button>
+  <div class="btn-msg" title="私信发起人">💬</div>
+</div>
+
+<!-- Join Modal -->
+<div class="modal-overlay" id="joinModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">确认加入</div>
+    <div class="modal-summary">
+      <div class="modal-row"><span>活动</span><span class="val">周末羽毛球局</span></div>
+      <div class="modal-row"><span>时间</span><span class="val">05-10 周六 14:00</span></div>
+      <div class="modal-row"><span>地点</span><span class="val">望京SOHO 羽毛球馆</span></div>
+      <div class="modal-row"><span>费用</span><span class="val" style="color:var(--primary)">¥35/人（AA）</span></div>
+    </div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="closeJoinModal()">再想想</button>
+      <button class="modal-confirm" onclick="confirmJoin()">确认加入</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showJoinModal() {
+  document.getElementById('joinModal').classList.add('show');
+}
+function closeJoinModal() {
+  document.getElementById('joinModal').classList.remove('show');
+}
+function confirmJoin() {
+  closeJoinModal();
+  const btn = document.getElementById('joinBtn');
+  btn.textContent = '已加入 ✓';
+  btn.classList.add('joined');
+  btn.onclick = null;
+  // update wall hint
+  document.querySelector('.wall-hint').textContent = '已有4人加入，还差2人成局';
+  document.querySelector('.progress-fill').style.width = '67%';
+  document.querySelector('.progress-text').textContent = '还差2人成局';
+}
+// close modal on overlay click
+document.getElementById('joinModal').addEventListener('click', function(e) {
+  if (e.target === this) closeJoinModal();
+});
+</script>
+</body>
+</html>
