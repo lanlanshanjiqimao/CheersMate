@@ -10,7 +10,7 @@ import { useActivities } from '../../contexts/ActivityContext';
 import ProfileHeader from '../../components/profile/ProfileHeader';
 import ActivityGrid from '../../components/profile/ActivityGrid';
 
-const TABS = ['我参加的', '我组织的'] as const;
+const TABS = ['我参加的', '我组织的', '我收藏的'] as const;
 type ProfileTab = (typeof TABS)[number];
 
 export default function ProfilePage() {
@@ -29,7 +29,17 @@ export default function ProfilePage() {
     [state.activities, user.id],
   );
 
-  const displayedActivities = activeTab === '我参加的' ? joinedActivities : organizedActivities;
+  const favoritedActivities = useMemo(
+    () => state.activities.filter((a) => a.favorited),
+    [state.activities],
+  );
+
+  const displayedActivities =
+    activeTab === '我参加的'
+      ? joinedActivities
+      : activeTab === '我组织的'
+        ? organizedActivities
+        : favoritedActivities;
 
   const handleActivityPress = useCallback((activityId: string) => {
     router.push(`/activity/${activityId}`);
