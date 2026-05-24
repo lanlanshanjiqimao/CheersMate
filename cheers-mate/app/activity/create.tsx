@@ -17,7 +17,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { generateId } from '../../utils/helpers';
 import { StickyNav } from '../../components/ui';
 
-const CATEGORIES = ['运动', '美食', '娱乐', '户外', '社交', '旅行'];
+const CATEGORIES = ['运动', '美食', '娱乐', '户外', '社交', '旅行', '其他'];
 
 const MAX_DESCRIPTION_LENGTH = 100;
 
