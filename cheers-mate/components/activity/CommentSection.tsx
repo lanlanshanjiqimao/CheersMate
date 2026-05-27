@@ -12,7 +12,6 @@ import { Spacing, BorderRadius } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 import { Comment } from '../../types/activity';
 import { User } from '../../types/user';
-import { getUserById } from '../../data/mockUsers';
 import { formatRelativeTime } from '../../utils/formatters';
 import { Avatar } from '../ui';
 
@@ -23,6 +22,7 @@ interface CommentSectionProps {
   onPinComment: (commentId: string) => void;
   onDeleteComment: (commentId: string) => void;
   currentUserId: string;
+  getUserById: (id: string) => User | undefined;
 }
 
 export default function CommentSection({
@@ -32,6 +32,7 @@ export default function CommentSection({
   onPinComment,
   onDeleteComment,
   currentUserId,
+  getUserById,
 }: CommentSectionProps) {
   const [inputText, setInputText] = useState('');
 

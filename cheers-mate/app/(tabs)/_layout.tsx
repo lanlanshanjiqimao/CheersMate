@@ -1,10 +1,24 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { StyleSheet } from 'react-native';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
 import { Colors } from '../../constants/colors';
+import { useAuth } from '../../contexts/AuthContext';
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const { isAuthenticated, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.replace('/auth');
+    }
+  }, [isAuthenticated, loading]);
+
+  if (loading) return null;
+  if (!isAuthenticated) return null;
 
   return (
     <Tabs
@@ -68,5 +82,3 @@ export default function TabLayout() {
     </Tabs>
   );
 }
-
-import { StyleSheet } from 'react-native';

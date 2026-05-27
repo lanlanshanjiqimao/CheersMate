@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
 import { Activity, Comment } from '../types/activity';
-import { mockActivities } from '../data/mockActivities';
 import { getItem, setItem, STORAGE_KEYS } from '../services/storage';
+import { fileGet, fileSet } from '../services/fileSync';
 import { generateId } from '../utils/helpers';
 import { ActivityStatus } from '../constants/status';
 
@@ -23,7 +23,7 @@ type Action =
   | { type: 'DELETE_COMMENT'; payload: { activityId: string; commentId: string } };
 
 const initialState: ActivityState = {
-  activities: mockActivities,
+  activities: [],
   favorites: [],
 };
 
@@ -157,13 +157,24 @@ export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(activityReducer, initialState);
 
   useEffect(() => {
-    getItem<ActivityState>(STORAGE_KEYS.ACTIVITIES).then((stored) => {
+    (async () => {
+      // Try AsyncStorage first
+      let stored = await getItem<ActivityState>(STORAGE_KEYS.ACTIVITIES);
+      // If empty, try file server
+      if (!stored || (stored.activities.length === 0)) {
+        const fileData = await fileGet<ActivityState>('activities');
+        if (fileData && fileData.activities.length > 0) {
+          stored = fileData;
+          await setItem(STORAGE_KEYS.ACTIVITIES, stored);
+        }
+      }
       if (stored) dispatch({ type: 'HYDRATE', payload: stored });
-    });
+    })();
   }, []);
 
   useEffect(() => {
     setItem(STORAGE_KEYS.ACTIVITIES, state);
+    fileSet('activities', state);
   }, [state]);
 
   return (

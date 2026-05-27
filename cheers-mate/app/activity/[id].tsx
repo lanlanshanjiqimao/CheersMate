@@ -15,7 +15,6 @@ import { Typography } from '../../constants/typography';
 import { ActivityStatus } from '../../constants/status';
 import { useActivities } from '../../contexts/ActivityContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { getUserById } from '../../data/mockUsers';
 import { StickyNav, ConfirmModal } from '../../components/ui';
 import ActivityHero from '../../components/activity/ActivityHero';
 import ActivityInfoCard from '../../components/activity/ActivityInfoCard';
@@ -28,11 +27,13 @@ import StatusSheet from '../../components/activity/StatusSheet';
 export default function ActivityDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state, dispatch } = useActivities();
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, getUserById } = useAuth();
 
   const activity = state.activities.find((a) => a.id === id);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showStatusSheet, setShowStatusSheet] = useState(false);
+
+  if (!currentUser) return null;
 
   // Derived state
   const isOrganizer = useMemo(
@@ -271,6 +272,7 @@ export default function ActivityDetailPage() {
             onPinComment={handlePinComment}
             onDeleteComment={handleDeleteComment}
             currentUserId={currentUser.id}
+            getUserById={getUserById}
           />
 
           {/* Bottom spacing for fixed bar */}

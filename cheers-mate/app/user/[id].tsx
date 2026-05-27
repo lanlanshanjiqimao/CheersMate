@@ -5,7 +5,7 @@ import { Colors } from '../../constants/colors';
 import { Spacing } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 import { useActivities } from '../../contexts/ActivityContext';
-import { getUserById } from '../../data/mockUsers';
+import { useAuth } from '../../contexts/AuthContext';
 import { StickyNav } from '../../components/ui';
 import ProfileHeader from '../../components/profile/ProfileHeader';
 import ActivityGrid from '../../components/profile/ActivityGrid';
@@ -13,8 +13,9 @@ import ActivityGrid from '../../components/profile/ActivityGrid';
 export default function UserProfilePage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state } = useActivities();
+  const { getUserById } = useAuth();
 
-  const user = useMemo(() => (id ? getUserById(id) : undefined), [id]);
+  const user = useMemo(() => (id ? getUserById(id) : undefined), [id, getUserById]);
 
   const organizedActivities = useMemo(
     () => (id ? state.activities.filter((a) => a.organizerId === id) : []),

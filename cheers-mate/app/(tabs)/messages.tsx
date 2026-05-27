@@ -3,6 +3,7 @@ import { View, FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useChat } from '../../contexts/ChatContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { StickyNav } from '../../components/ui';
 import ConversationItem from '../../components/messaging/ConversationItem';
 import { Colors } from '../../constants/colors';
@@ -17,6 +18,7 @@ const TYPE_ORDER: Record<Conversation['type'], number> = {
 
 export default function MessagesPage() {
   const { state, dispatch } = useChat();
+  const { user, getUserById } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -34,9 +36,14 @@ export default function MessagesPage() {
 
   const renderItem = useCallback(
     ({ item }: { item: Conversation }) => (
-      <ConversationItem conversation={item} onPress={() => handlePress(item.id)} />
+      <ConversationItem
+        conversation={item}
+        currentUserId={user?.id ?? ''}
+        getUserById={getUserById}
+        onPress={() => handlePress(item.id)}
+      />
     ),
-    [handlePress],
+    [handlePress, user?.id, getUserById],
   );
 
   return (

@@ -1,15 +1,31 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { Colors } from '../constants/colors';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function SplashPage() {
+  const { isAuthenticated, loading } = useAuth();
+
   useEffect(() => {
+    if (loading) return;
     const timer = setTimeout(() => {
-      router.replace('/(tabs)/home');
+      if (isAuthenticated) {
+        router.replace('/(tabs)/home');
+      } else {
+        router.replace('/auth');
+      }
     }, 1500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [isAuthenticated, loading]);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

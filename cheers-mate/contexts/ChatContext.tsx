@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
 import { Conversation, Message } from '../types/message';
-import { mockConversations } from '../data/mockMessages';
 import { getItem, setItem, STORAGE_KEYS } from '../services/storage';
+import { fileGet, fileSet } from '../services/fileSync';
 import { generateId } from '../utils/helpers';
 
 interface ChatState {
@@ -15,7 +15,7 @@ type Action =
   | { type: 'CREATE_CONVERSATION'; payload: Conversation };
 
 const initialState: ChatState = {
-  conversations: mockConversations,
+  conversations: [],
 };
 
 function chatReducer(state: ChatState, action: Action): ChatState {
@@ -81,13 +81,22 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState);
 
   useEffect(() => {
-    getItem<ChatState>(STORAGE_KEYS.CHAT).then((stored) => {
+    (async () => {
+      let stored = await getItem<ChatState>(STORAGE_KEYS.CHAT);
+      if (!stored || (stored.conversations.length === 0)) {
+        const fileData = await fileGet<ChatState>('chat');
+        if (fileData && fileData.conversations.length > 0) {
+          stored = fileData;
+          await setItem(STORAGE_KEYS.CHAT, stored);
+        }
+      }
       if (stored) dispatch({ type: 'HYDRATE', payload: stored });
-    });
+    })();
   }, []);
 
   useEffect(() => {
     setItem(STORAGE_KEYS.CHAT, state);
+    fileSet('chat', state);
   }, [state]);
 
   return (

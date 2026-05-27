@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Conversation } from '../../types/message';
+import { User } from '../../types/user';
 import { Avatar, Tag } from '../ui';
 import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius } from '../../constants/spacing';
@@ -8,21 +9,30 @@ import { Typography } from '../../constants/typography';
 
 interface ConversationItemProps {
   conversation: Conversation;
+  currentUserId: string;
+  getUserById: (id: string) => User | undefined;
   onPress: () => void;
 }
 
-export default function ConversationItem({ conversation, onPress }: ConversationItemProps) {
+export default function ConversationItem({ conversation, currentUserId, getUserById, onPress }: ConversationItemProps) {
   const {
     type,
-    name,
-    emoji,
     tag,
     lastMessage,
     lastMessageTime,
     unread,
-    online,
     dissolved,
   } = conversation;
+
+  // For direct messages, resolve the other user's info dynamically
+  const otherParticipantId = type === 'direct'
+    ? conversation.participantIds.find((pid) => pid !== currentUserId)
+    : undefined;
+  const otherUser = otherParticipantId ? getUserById(otherParticipantId) : undefined;
+
+  const displayName = type === 'direct' ? (otherUser?.name ?? conversation.name) : conversation.name;
+  const displayEmoji = type === 'direct' ? (otherUser?.emoji ?? conversation.emoji) : conversation.emoji;
+  const displayOnline = type === 'direct' ? (otherUser?.online ?? false) : conversation.online;
 
   const isSystem = type === 'system';
   const isGroup = type === 'group';
@@ -39,11 +49,11 @@ export default function ConversationItem({ conversation, onPress }: Conversation
     >
       <View style={styles.avatarWrap}>
         <Avatar
-          emoji={emoji}
+          emoji={displayEmoji}
           bg={isSystem ? Colors.systemBg : isGroup ? Colors.greenBg : Colors.primaryBg}
           size={48}
         />
-        {online && <View style={styles.onlineDot} />}
+        {displayOnline && <View style={styles.onlineDot} />}
         {isGroup && (
           <View style={styles.groupBadge}>
             <Text style={styles.groupBadgeText}>群</Text>
@@ -54,7 +64,7 @@ export default function ConversationItem({ conversation, onPress }: Conversation
       <View style={styles.info}>
         <View style={styles.topRow}>
           <Text style={styles.name} numberOfLines={1}>
-            {name}
+            {displayName}
           </Text>
           {tag && <Tag label={tag.label} type={tag.type} />}
         </View>

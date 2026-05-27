@@ -17,8 +17,6 @@ import { useActivities } from '../../contexts/ActivityContext';
 import { StickyNav, Avatar } from '../../components/ui';
 import ChatBubble, { TimeDivider } from '../../components/messaging/ChatBubble';
 import ActivityBanner from '../../components/messaging/ActivityBanner';
-import { getUserById } from '../../data/mockUsers';
-import { getActivityById } from '../../data/mockActivities';
 import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
@@ -41,10 +39,12 @@ export default function ChatPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { state: chatState, dispatch } = useChat();
-  const { user: me } = useAuth();
+  const { user: me, getUserById } = useAuth();
   const { state: activityState } = useActivities();
 
   const [inputText, setInputText] = useState('');
+
+  if (!me) return null;
   const [bannerCollapsed, setBannerCollapsed] = useState(false);
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
 
@@ -148,9 +148,35 @@ export default function ChatPage() {
     [me],
   );
 
-  const convName = conversation?.name ?? '聊天';
-  const convOnline = conversation?.online;
-  const convEmoji = conversation?.emoji;
+  const convName = useMemo(() => {
+    if (!conversation) return '聊天';
+    if (conversation.type === 'direct') {
+      const otherId = conversation.participantIds.find((pid) => pid !== me.id);
+      const other = otherId ? getUserById(otherId) : undefined;
+      return other?.name ?? conversation.name;
+    }
+    return conversation.name;
+  }, [conversation, me.id, getUserById]);
+
+  const convEmoji = useMemo(() => {
+    if (!conversation) return '?';
+    if (conversation.type === 'direct') {
+      const otherId = conversation.participantIds.find((pid) => pid !== me.id);
+      const other = otherId ? getUserById(otherId) : undefined;
+      return other?.emoji ?? conversation.emoji;
+    }
+    return conversation.emoji;
+  }, [conversation, me.id, getUserById]);
+
+  const convOnline = useMemo(() => {
+    if (!conversation) return false;
+    if (conversation.type === 'direct') {
+      const otherId = conversation.participantIds.find((pid) => pid !== me.id);
+      const other = otherId ? getUserById(otherId) : undefined;
+      return other?.online ?? false;
+    }
+    return conversation.online;
+  }, [conversation, me.id, getUserById]);
 
   return (
     <KeyboardAvoidingView

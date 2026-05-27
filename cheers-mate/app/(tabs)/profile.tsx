@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Colors } from '../../constants/colors';
@@ -15,18 +15,18 @@ type ProfileTab = (typeof TABS)[number];
 
 export default function ProfilePage() {
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { state } = useActivities();
   const [activeTab, setActiveTab] = useState<ProfileTab>('我参加的');
 
   const joinedActivities = useMemo(
-    () => state.activities.filter((a) => a.memberIds.includes(user.id)),
-    [state.activities, user.id],
+    () => (user ? state.activities.filter((a) => a.memberIds.includes(user.id)) : []),
+    [state.activities, user],
   );
 
   const organizedActivities = useMemo(
-    () => state.activities.filter((a) => a.organizerId === user.id),
-    [state.activities, user.id],
+    () => (user ? state.activities.filter((a) => a.organizerId === user.id) : []),
+    [state.activities, user],
   );
 
   const favoritedActivities = useMemo(
@@ -44,6 +44,15 @@ export default function ProfilePage() {
   const handleActivityPress = useCallback((activityId: string) => {
     router.push(`/activity/${activityId}`);
   }, []);
+
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogout = useCallback(async () => {
+    await logout();
+    router.replace('/auth');
+  }, [logout]);
+
+  if (!user) return null;
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -90,6 +99,25 @@ export default function ProfilePage() {
 
         {/* Activity Grid */}
         <ActivityGrid activities={displayedActivities} onActivityPress={handleActivityPress} />
+
+        {/* Logout */}
+        {!showLogoutConfirm ? (
+          <TouchableOpacity style={styles.logoutBtn} onPress={() => setShowLogoutConfirm(true)} activeOpacity={0.7}>
+            <Text style={styles.logoutText}>退出登录</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.logoutConfirm}>
+            <Text style={styles.logoutConfirmText}>确定要退出登录吗？</Text>
+            <View style={styles.logoutConfirmBtns}>
+              <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowLogoutConfirm(false)} activeOpacity={0.7}>
+                <Text style={styles.cancelBtnText}>取消</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.confirmLogoutBtn} onPress={handleLogout} activeOpacity={0.7}>
+                <Text style={styles.confirmLogoutBtnText}>退出</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </View>
   );
@@ -152,5 +180,64 @@ const styles = StyleSheet.create({
   segmentTextActive: {
     color: Colors.text,
     fontWeight: '700',
+  },
+  logoutBtn: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.xl,
+    paddingVertical: Spacing.lg,
+    borderRadius: BorderRadius.button,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.red,
+    alignItems: 'center',
+  },
+  logoutText: {
+    ...Typography.caption,
+    color: Colors.red,
+    fontWeight: '600',
+  },
+  logoutConfirm: {
+    marginHorizontal: Spacing.lg,
+    marginTop: Spacing.xl,
+    backgroundColor: Colors.card,
+    borderRadius: BorderRadius.card,
+    padding: Spacing.xl,
+    alignItems: 'center',
+  },
+  logoutConfirmText: {
+    ...Typography.body,
+    color: Colors.text,
+    marginBottom: Spacing.lg,
+  },
+  logoutConfirmBtns: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    width: '100%',
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.button,
+    backgroundColor: Colors.bg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    fontWeight: '600',
+  },
+  confirmLogoutBtn: {
+    flex: 1,
+    paddingVertical: Spacing.md,
+    borderRadius: BorderRadius.button,
+    backgroundColor: Colors.red,
+    alignItems: 'center',
+  },
+  confirmLogoutBtnText: {
+    ...Typography.caption,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });

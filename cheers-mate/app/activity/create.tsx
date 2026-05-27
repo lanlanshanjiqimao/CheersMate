@@ -52,6 +52,8 @@ export default function CreateActivityPage() {
   const { user } = useAuth();
   const [form, setForm] = useState<FormState>(initialForm);
 
+  if (!user) return null;
+
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   }, []);

@@ -15,6 +15,8 @@ export async function removeItem(key: string): Promise<void> {
 
 export const STORAGE_KEYS = {
   AUTH: 'cheersmate_auth',
+  CREDENTIALS: 'cheersmate_credentials',
+  USERS: 'cheersmate_users',
   ACTIVITIES: 'cheersmate_activities',
   CHAT: 'cheersmate_chat',
 } as const;
