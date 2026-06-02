@@ -14,6 +14,7 @@ import { Spacing, BorderRadius } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 import { ActivityStatus } from '../../constants/status';
 import { useActivities } from '../../contexts/ActivityContext';
+import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { StickyNav, ConfirmModal } from '../../components/ui';
 import ActivityHero from '../../components/activity/ActivityHero';
@@ -27,23 +28,24 @@ import StatusSheet from '../../components/activity/StatusSheet';
 export default function ActivityDetailPage() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state, dispatch } = useActivities();
+  const { dispatch: chatDispatch } = useChat();
   const { user: currentUser, getUserById } = useAuth();
 
   const activity = state.activities.find((a) => a.id === id);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showStatusSheet, setShowStatusSheet] = useState(false);
 
-  if (!currentUser) return null;
-
   // Derived state
+  const userId = currentUser?.id ?? '';
+
   const isOrganizer = useMemo(
-    () => activity?.organizerId === currentUser.id,
-    [activity?.organizerId, currentUser.id],
+    () => activity?.organizerId === userId,
+    [activity?.organizerId, userId],
   );
 
   const hasJoined = useMemo(
-    () => activity?.memberIds.includes(currentUser.id) ?? false,
-    [activity?.memberIds, currentUser.id],
+    () => activity?.memberIds.includes(userId) ?? false,
+    [activity?.memberIds, userId],
   );
 
   const isFull = useMemo(
@@ -83,39 +85,61 @@ export default function ActivityDetailPage() {
 
   const handleConfirmJoin = useCallback(() => {
     if (activity) {
-      dispatch({ type: 'JOIN', payload: { activityId: activity.id, userId: currentUser.id } });
+      dispatch({ type: 'JOIN', payload: { activityId: activity.id, userId } });
+      chatDispatch({
+        type: 'JOIN_GROUP_CHAT',
+        payload: { activityId: activity.id, userId, userName: currentUser?.name ?? '', activityTitle: activity.title, activityEmoji: activity.emoji },
+      });
     }
     setShowJoinModal(false);
-  }, [activity, currentUser.id, dispatch]);
+  }, [activity, userId, dispatch, chatDispatch, currentUser?.name]);
 
   const handleLeave = useCallback(() => {
     if (activity) {
-      dispatch({ type: 'LEAVE', payload: { activityId: activity.id, userId: currentUser.id } });
+      dispatch({ type: 'LEAVE', payload: { activityId: activity.id, userId } });
+      chatDispatch({
+        type: 'LEAVE_GROUP_CHAT',
+        payload: { activityId: activity.id, userId, userName: currentUser?.name ?? '' },
+      });
     }
-  }, [activity, currentUser.id, dispatch]);
+  }, [activity, userId, dispatch, chatDispatch, currentUser?.name]);
 
   const handleDM = useCallback(() => {
     if (activity) {
-      // Use activity id as conversation id for organizer DM
       router.push(`/chat/${activity.organizerId}`);
     }
   }, [activity]);
 
+  const handleGroupChat = useCallback(() => {
+    if (activity) {
+      router.push(`/chat/group_${activity.id}`);
+    }
+  }, [activity]);
+
   const handleUserPress = useCallback((userId: string) => {
-    router.push(`/user/${userId}`);
-  }, []);
+    if (userId === currentUser?.id) {
+      router.push('/(tabs)/profile');
+    } else {
+      router.push(`/user/${userId}`);
+    }
+  }, [currentUser?.id]);
 
   const handleMessageMember = useCallback((userId: string) => {
     router.push(`/chat/${userId}`);
   }, []);
 
   const handleRemoveMember = useCallback(
-    (userId: string) => {
+    (memberId: string) => {
       if (activity) {
-        dispatch({ type: 'REMOVE_MEMBER', payload: { activityId: activity.id, userId } });
+        const member = getUserById(memberId);
+        dispatch({ type: 'REMOVE_MEMBER', payload: { activityId: activity.id, userId: memberId } });
+        chatDispatch({
+          type: 'LEAVE_GROUP_CHAT',
+          payload: { activityId: activity.id, userId: memberId, userName: member?.name ?? '' },
+        });
       }
     },
-    [activity, dispatch],
+    [activity, dispatch, chatDispatch, getUserById],
   );
 
   const handleAddComment = useCallback(
@@ -146,7 +170,6 @@ export default function ActivityDetailPage() {
   );
 
   const handleEditActivity = useCallback(() => {
-    // Navigate to edit page (reuse create page with id param)
     router.push(`/activity/create?editId=${id}`);
   }, [id]);
 
@@ -154,18 +177,25 @@ export default function ActivityDetailPage() {
     if (activity) {
       dispatch({
         type: 'UPDATE_STATUS',
-        payload: { activityId: activity.id, status: ActivityStatus.ONGOING },
+        payload: { activityId: activity.id, status: ActivityStatus.GROUPED },
       });
     }
+    setShowStatusSheet(false);
   }, [activity, dispatch]);
 
-  const handleExtendEnrollment = useCallback(() => {
-    // No status change needed, just a UI action for now
-  }, []);
-
-  const handleExportMembers = useCallback(() => {
-    // Placeholder for export functionality
-  }, []);
+  const handleCompleteActivity = useCallback(() => {
+    if (activity) {
+      dispatch({
+        type: 'UPDATE_STATUS',
+        payload: { activityId: activity.id, status: ActivityStatus.COMPLETED },
+      });
+      chatDispatch({
+        type: 'DISSOLVE_GROUP_CHAT',
+        payload: { activityId: activity.id, reason: '活动已完成' },
+      });
+    }
+    setShowStatusSheet(false);
+  }, [activity, dispatch, chatDispatch]);
 
   const handleCancelActivity = useCallback(() => {
     if (activity) {
@@ -173,16 +203,38 @@ export default function ActivityDetailPage() {
         type: 'UPDATE_STATUS',
         payload: { activityId: activity.id, status: ActivityStatus.CANCELLED },
       });
+      chatDispatch({
+        type: 'DISSOLVE_GROUP_CHAT',
+        payload: { activityId: activity.id, reason: '活动已取消' },
+      });
     }
-  }, [activity, dispatch]);
+    setShowStatusSheet(false);
+  }, [activity, dispatch, chatDispatch]);
+
+  const hasReviewedAll = useMemo(() => {
+    if (!activity || !currentUser) return false;
+    const allParticipants = [activity.organizerId, ...activity.memberIds];
+    const othersToReview = allParticipants.filter((pid) => pid !== currentUser.id);
+    if (othersToReview.length === 0) return true;
+    const reviewed = activity.reviewedUserIds?.[currentUser.id] ?? [];
+    return othersToReview.every((pid) => reviewed.includes(pid));
+  }, [activity, currentUser]);
+
+  const handleReview = useCallback(() => {
+    if (id) {
+      router.push(`/activity/review/${id}`);
+    }
+  }, [id]);
 
   // Loading / not found
-  if (!activity) {
+  if (!currentUser || !activity) {
     return (
       <View style={styles.container}>
         <StickyNav title="活动详情" onBack={handleBack} />
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>活动不存在</Text>
+          <Text style={styles.emptyText}>
+            {!currentUser ? '加载中...' : '活动不存在'}
+          </Text>
         </View>
       </View>
     );
@@ -190,7 +242,12 @@ export default function ActivityDetailPage() {
 
   const isEnded =
     activity.status === ActivityStatus.ENDED ||
+    activity.status === ActivityStatus.COMPLETED ||
     activity.status === ActivityStatus.CANCELLED;
+
+  const canJoin =
+    activity.status === ActivityStatus.ENROLLING ||
+    activity.status === ActivityStatus.FULL;
 
   // ---- RENDER ----
 
@@ -236,6 +293,7 @@ export default function ActivityDetailPage() {
                 members={members}
                 onMessage={handleMessageMember}
                 onRemove={handleRemoveMember}
+                onUserPress={handleUserPress}
               />
             </>
           ) : (
@@ -264,6 +322,27 @@ export default function ActivityDetailPage() {
             <Text style={styles.descText}>{activity.description}</Text>
           </View>
 
+          {/* Review banner for completed activities */}
+          {activity.status === ActivityStatus.COMPLETED && !hasReviewedAll && (
+            <TouchableOpacity
+              style={styles.reviewBanner}
+              onPress={handleReview}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.reviewBannerEmoji}>⭐</Text>
+              <View style={styles.reviewBannerInfo}>
+                <Text style={styles.reviewBannerTitle}>评价搭子</Text>
+                <Text style={styles.reviewBannerSub}>活动已结束，快来评价你的搭子吧</Text>
+              </View>
+              <Text style={styles.reviewBannerArrow}>›</Text>
+            </TouchableOpacity>
+          )}
+          {activity.status === ActivityStatus.COMPLETED && hasReviewedAll && (
+            <View style={styles.reviewBannerDone}>
+              <Text style={styles.reviewBannerDoneText}>✓ 已完成评价</Text>
+            </View>
+          )}
+
           {/* Comments */}
           <CommentSection
             comments={activity.comments}
@@ -273,6 +352,7 @@ export default function ActivityDetailPage() {
             onDeleteComment={handleDeleteComment}
             currentUserId={currentUser.id}
             getUserById={getUserById}
+            onUserPress={handleUserPress}
           />
 
           {/* Bottom spacing for fixed bar */}
@@ -282,13 +362,47 @@ export default function ActivityDetailPage() {
         {/* ---- Bottom bar ---- */}
         {isOrganizer ? (
           <View style={styles.bottomBar}>
-            <TouchableOpacity
-              style={styles.manageBtn}
-              onPress={() => setShowStatusSheet(true)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.manageBtnText}>管理活动</Text>
-            </TouchableOpacity>
+            {!isEnded && (
+              <TouchableOpacity
+                style={styles.groupChatBtn}
+                onPress={handleGroupChat}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.groupChatBtnEmoji}>💬</Text>
+                <Text style={styles.groupChatBtnText}>群聊</Text>
+              </TouchableOpacity>
+            )}
+            {isEnded ? (
+              <>
+                {activity.status === ActivityStatus.COMPLETED && !hasReviewedAll ? (
+                  <TouchableOpacity
+                    style={styles.reviewBtn}
+                    onPress={handleReview}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.reviewBtnText}>⭐ 评价搭子</Text>
+                  </TouchableOpacity>
+                ) : activity.status === ActivityStatus.COMPLETED && hasReviewedAll ? (
+                  <View style={styles.statusInfoBar}>
+                    <Text style={styles.statusInfoText}>已评价 ✓</Text>
+                  </View>
+                ) : (
+                  <View style={styles.statusInfoBar}>
+                    <Text style={styles.statusInfoText}>
+                      {activity.status === ActivityStatus.CANCELLED ? '活动已取消' : '活动已结束'}
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <TouchableOpacity
+                style={styles.manageBtn}
+                onPress={() => setShowStatusSheet(true)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.manageBtnText}>管理活动</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <View style={styles.bottomBar}>
@@ -299,12 +413,24 @@ export default function ActivityDetailPage() {
               activeOpacity={0.7}
             >
               <Text style={styles.barActionEmoji}>
-                {activity.favorited ? '❤️' : '🤍'}
+                {state.favorites.includes(activity.id) ? '❤️' : '🤍'}
               </Text>
             </TouchableOpacity>
 
-            {/* Join / Joined button */}
-            {hasJoined ? (
+            {/* Join / Review / Status button */}
+            {activity.status === ActivityStatus.COMPLETED && hasJoined && !hasReviewedAll ? (
+              <TouchableOpacity
+                style={styles.reviewBtn}
+                onPress={handleReview}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.reviewBtnText}>⭐ 评价搭子</Text>
+              </TouchableOpacity>
+            ) : activity.status === ActivityStatus.COMPLETED && hasJoined && hasReviewedAll ? (
+              <View style={styles.joinBtnJoined}>
+                <Text style={styles.joinBtnJoinedText}>已评价 ✓</Text>
+              </View>
+            ) : hasJoined ? (
               <TouchableOpacity
                 style={styles.joinBtnJoined}
                 onPress={handleLeave}
@@ -316,37 +442,56 @@ export default function ActivityDetailPage() {
               <TouchableOpacity
                 style={[
                   styles.joinBtn,
-                  (isFull || isEnded) && styles.joinBtnDisabled,
+                  !canJoin && styles.joinBtnDisabled,
                 ]}
-                onPress={isFull || isEnded ? undefined : handleJoin}
+                onPress={canJoin ? handleJoin : undefined}
                 activeOpacity={0.7}
-                disabled={isFull || isEnded}
+                disabled={!canJoin}
               >
                 <Text
                   style={[
                     styles.joinBtnText,
-                    (isFull || isEnded) && styles.joinBtnTextDisabled,
+                    !canJoin && styles.joinBtnTextDisabled,
                   ]}
                 >
-                  {isEnded
-                    ? activity.status === ActivityStatus.CANCELLED
-                      ? '已取消'
-                      : '已结束'
-                    : isFull
-                      ? '已满员'
-                      : '我要加入'}
+                  {activity.status === ActivityStatus.CANCELLED
+                    ? '已取消'
+                    : activity.status === ActivityStatus.COMPLETED
+                      ? '已完成'
+                      : activity.status === ActivityStatus.ENDED
+                        ? '已结束'
+                        : activity.status === ActivityStatus.GROUPED
+                          ? '已成团'
+                          : activity.status === ActivityStatus.ONGOING
+                            ? '已开始'
+                            : isFull
+                              ? '已满员'
+                              : '我要加入'}
                 </Text>
               </TouchableOpacity>
             )}
 
-            {/* DM button */}
-            <TouchableOpacity
-              style={styles.dmBtn}
-              onPress={handleDM}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.dmBtnEmoji}>💬</Text>
-            </TouchableOpacity>
+            {/* Group chat button */}
+            {hasJoined && (
+              <TouchableOpacity
+                style={styles.dmBtn}
+                onPress={handleGroupChat}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dmBtnEmoji}>💬</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* DM organizer button (only when not joined) */}
+            {!hasJoined && (
+              <TouchableOpacity
+                style={styles.dmBtn}
+                onPress={handleDM}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.dmBtnEmoji}>💬</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
       </KeyboardAvoidingView>
@@ -365,10 +510,10 @@ export default function ActivityDetailPage() {
       <StatusSheet
         visible={showStatusSheet}
         onClose={() => setShowStatusSheet(false)}
+        activityStatus={activity.status}
         onEdit={handleEditActivity}
         onEndEnrollment={handleEndEnrollment}
-        onExtendEnrollment={handleExtendEnrollment}
-        onExportMembers={handleExportMembers}
+        onCompleteActivity={handleCompleteActivity}
         onCancelActivity={handleCancelActivity}
       />
     </View>
@@ -498,6 +643,85 @@ const styles = StyleSheet.create({
     fontSize: 18,
   },
 
+  // Review banner (in-page)
+  reviewBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    padding: Spacing.lg,
+    backgroundColor: Colors.orangeBg,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#F5D98C',
+  },
+  reviewBannerEmoji: {
+    fontSize: 28,
+  },
+  reviewBannerInfo: {
+    flex: 1,
+  },
+  reviewBannerTitle: {
+    ...Typography.bodyBold,
+    color: Colors.text,
+  },
+  reviewBannerSub: {
+    ...Typography.small,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  reviewBannerArrow: {
+    fontSize: 20,
+    color: Colors.textMuted,
+  },
+  reviewBannerDone: {
+    marginHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    padding: Spacing.lg,
+    backgroundColor: Colors.bg,
+    borderRadius: 14,
+    alignItems: 'center',
+  },
+  reviewBannerDoneText: {
+    ...Typography.caption,
+    color: Colors.textMuted,
+  },
+
+  // Review button (bottom bar)
+  reviewBtn: {
+    flex: 1,
+    backgroundColor: Colors.orange,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+
+  // Group chat button (organizer)
+  groupChatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 13,
+    borderRadius: 12,
+    backgroundColor: Colors.greenBg,
+  },
+  groupChatBtnEmoji: {
+    fontSize: 16,
+  },
+  groupChatBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.green,
+  },
+
   // Manage button (organizer)
   manageBtn: {
     flex: 1,
@@ -511,5 +735,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+
+  // Status info bar (organizer, ended)
+  statusInfoBar: {
+    flex: 1,
+    backgroundColor: Colors.bg,
+    borderRadius: 12,
+    paddingVertical: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusInfoText: {
+    ...Typography.body,
+    color: Colors.textMuted,
   },
 });

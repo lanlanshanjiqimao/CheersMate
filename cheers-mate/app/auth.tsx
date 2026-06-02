@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -6,6 +6,7 @@ import { Colors } from '../constants/colors';
 import { Spacing, BorderRadius, Shadows } from '../constants/spacing';
 import { Typography } from '../constants/typography';
 import { useAuth } from '../contexts/AuthContext';
+import { getSyncServerUrl, fileGet } from '../services/fileSync';
 
 type AuthTab = 'login' | 'signup';
 
@@ -18,6 +19,19 @@ export default function AuthPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<'checking' | 'ok' | 'fail'>('checking');
+  const syncUrl = getSyncServerUrl();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const creds = await fileGet<Record<string, unknown>>('credentials');
+        setSyncStatus(creds && Object.keys(creds).length > 0 ? 'ok' : 'fail');
+      } catch {
+        setSyncStatus('fail');
+      }
+    })();
+  }, []);
 
   const handleSubmit = async () => {
     setError('');
@@ -111,6 +125,13 @@ export default function AuthPage() {
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+          <View style={styles.syncIndicator}>
+            <View style={[styles.syncDot, syncStatus === 'checking' && styles.syncDotChecking, syncStatus === 'ok' && styles.syncDotOk, syncStatus === 'fail' && styles.syncDotFail]} />
+            <Text style={styles.syncText}>
+              {syncStatus === 'checking' ? `连接同步服务器 ${syncUrl}...` : syncStatus === 'ok' ? `同步服务器已连接` : `同步服务器不可达 (${syncUrl})`}
+            </Text>
+          </View>
 
           <TouchableOpacity
             style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
@@ -227,5 +248,29 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  syncIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+    gap: 6,
+  },
+  syncDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  syncDotChecking: {
+    backgroundColor: Colors.orange,
+  },
+  syncDotOk: {
+    backgroundColor: Colors.green,
+  },
+  syncDotFail: {
+    backgroundColor: Colors.red,
+  },
+  syncText: {
+    fontSize: 11,
+    color: Colors.textMuted,
   },
 });

@@ -1,4 +1,17 @@
 import { ExpoConfig, ConfigContext } from 'expo/config';
+import * as os from 'os';
+
+function getLocalIP(): string {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name] ?? []) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -35,5 +48,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     router: {
       origin: false,
     },
+    syncServerUrl: `http://${getLocalIP()}:3456`,
   },
 });

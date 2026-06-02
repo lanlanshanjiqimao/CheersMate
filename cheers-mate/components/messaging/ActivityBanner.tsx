@@ -9,12 +9,13 @@ interface ActivityBannerProps {
   activity: Activity | undefined;
   collapsed: boolean;
   onToggle: () => void;
+  nonCollapsible?: boolean;
 }
 
-export default function ActivityBanner({ activity, collapsed, onToggle }: ActivityBannerProps) {
+export default function ActivityBanner({ activity, collapsed, onToggle, nonCollapsible }: ActivityBannerProps) {
   if (!activity) return null;
 
-  if (collapsed) {
+  if (!nonCollapsible && collapsed) {
     return (
       <TouchableOpacity style={styles.collapsedRow} onPress={onToggle} activeOpacity={0.7}>
         <Text style={styles.collapsedText}>展开关联活动</Text>
@@ -38,9 +39,11 @@ export default function ActivityBanner({ activity, collapsed, onToggle }: Activi
         </View>
         <Text style={styles.bannerArrow}>›</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.collapseRow} onPress={onToggle} activeOpacity={0.7}>
-        <Text style={styles.collapseText}>收起关联活动</Text>
-      </TouchableOpacity>
+      {!nonCollapsible && (
+        <TouchableOpacity style={styles.collapseRow} onPress={onToggle} activeOpacity={0.7}>
+          <Text style={styles.collapseText}>收起关联活动</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

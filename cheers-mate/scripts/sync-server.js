@@ -1,6 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
 const DATA_DIR = path.join(__dirname, '../data');
 const PORT = 3456;
@@ -12,6 +13,15 @@ const FILES = {
   activities: path.join(DATA_DIR, 'activities.local.json'),
   chat: path.join(DATA_DIR, 'chat.local.json'),
 };
+
+function resolveFilePath(key) {
+  if (FILES[key]) return FILES[key];
+  // Allow dynamic keys like chat_u_mumu, chat_all
+  if (/^[a-z_]+$/.test(key)) {
+    return path.join(DATA_DIR, `${key}.local.json`);
+  }
+  return null;
+}
 
 function readJson(filepath) {
   try {
@@ -48,12 +58,13 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && req.url?.startsWith('/data')) {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const key = url.searchParams.get('key');
-    if (!key || !FILES[key]) {
+    const filepath = key ? resolveFilePath(key) : null;
+    if (!filepath) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: 'Invalid key' }));
       return;
     }
-    const data = readJson(FILES[key]);
+    const data = readJson(filepath);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ ok: true, data }));
     return;
@@ -74,7 +85,8 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && req.url?.startsWith('/data')) {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const key = url.searchParams.get('key');
-    if (!key || !FILES[key]) {
+    const filepath = key ? resolveFilePath(key) : null;
+    if (!filepath) {
       res.writeHead(400, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: false, error: 'Invalid key' }));
       return;
@@ -99,8 +111,20 @@ const server = http.createServer((req, res) => {
   res.end('Not found');
 });
 
-server.listen(PORT, () => {
-  console.log(`Data sync server running on http://localhost:${PORT}`);
+server.listen(PORT, '0.0.0.0', () => {
+  const nets = os.networkInterfaces();
+  const addresses = ['localhost'];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] ?? []) {
+      if (net.family === 'IPv4' && !net.internal) {
+        addresses.push(net.address);
+      }
+    }
+  }
+  console.log(`Data sync server running on port ${PORT}`);
+  for (const addr of addresses) {
+    console.log(`  http://${addr}:${PORT}`);
+  }
   console.log(`  GET  /data?key=<auth|credentials|users|activities|chat>`);
   console.log(`  GET  /all`);
   console.log(`  POST /data?key=<auth|credentials|users|activities|chat>`);

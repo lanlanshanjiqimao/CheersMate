@@ -10,9 +10,10 @@ interface MemberManagementProps {
   members: User[];
   onMessage: (userId: string) => void;
   onRemove: (userId: string) => void;
+  onUserPress?: (userId: string) => void;
 }
 
-export default function MemberManagement({ members, onMessage, onRemove }: MemberManagementProps) {
+export default function MemberManagement({ members, onMessage, onRemove, onUserPress }: MemberManagementProps) {
   const [removeTarget, setRemoveTarget] = useState<User | null>(null);
 
   const handleRemove = () => {
@@ -32,7 +33,13 @@ export default function MemberManagement({ members, onMessage, onRemove }: Membe
       <View style={styles.memberList}>
         {members.map((member) => (
           <View key={member.id} style={styles.memberItem}>
-            <Avatar emoji={member.emoji} bg={member.emojiBg} size={38} />
+            <TouchableOpacity
+              onPress={() => onUserPress?.(member.id)}
+              disabled={!onUserPress}
+              activeOpacity={0.7}
+            >
+              <Avatar emoji={member.emoji} bg={member.emojiBg} size={38} />
+            </TouchableOpacity>
             <View style={styles.memberInfo}>
               <Text style={styles.memberName}>{member.name}</Text>
               <Text style={styles.memberMeta}>

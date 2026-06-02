@@ -12,9 +12,10 @@ interface ConversationItemProps {
   currentUserId: string;
   getUserById: (id: string) => User | undefined;
   onPress: () => void;
+  onAvatarPress?: (userId: string) => void;
 }
 
-export default function ConversationItem({ conversation, currentUserId, getUserById, onPress }: ConversationItemProps) {
+export default function ConversationItem({ conversation, currentUserId, getUserById, onPress, onAvatarPress }: ConversationItemProps) {
   const {
     type,
     tag,
@@ -48,12 +49,19 @@ export default function ConversationItem({ conversation, currentUserId, getUserB
       activeOpacity={0.6}
     >
       <View style={styles.avatarWrap}>
-        <Avatar
-          emoji={displayEmoji}
-          bg={isSystem ? Colors.systemBg : isGroup ? Colors.greenBg : Colors.primaryBg}
-          size={48}
-        />
-        {displayOnline && <View style={styles.onlineDot} />}
+        <TouchableOpacity
+          onPress={() => {
+            if (onAvatarPress && otherParticipantId) onAvatarPress(otherParticipantId);
+          }}
+          disabled={!onAvatarPress || !otherParticipantId}
+          activeOpacity={0.7}
+        >
+          <Avatar
+            emoji={displayEmoji}
+            bg={isSystem ? Colors.systemBg : isGroup ? Colors.greenBg : Colors.primaryBg}
+            size={48}
+          />
+        </TouchableOpacity>
         {isGroup && (
           <View style={styles.groupBadge}>
             <Text style={styles.groupBadgeText}>群</Text>
@@ -110,17 +118,6 @@ const styles = StyleSheet.create({
   },
   avatarWrap: {
     position: 'relative',
-  },
-  onlineDot: {
-    position: 'absolute',
-    bottom: 1,
-    right: 1,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.green,
-    borderWidth: 2,
-    borderColor: Colors.card,
   },
   groupBadge: {
     position: 'absolute',

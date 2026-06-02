@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Message } from '../../types/message';
 import { User } from '../../types/user';
 import { Avatar } from '../ui';
@@ -13,9 +13,11 @@ interface ChatBubbleProps {
   message: Message;
   isSelf: boolean;
   sender: User | undefined;
+  onAvatarPress?: (userId: string) => void;
+  showSenderName?: boolean;
 }
 
-export default function ChatBubble({ message, isSelf, sender }: ChatBubbleProps) {
+export default function ChatBubble({ message, isSelf, sender, onAvatarPress, showSenderName }: ChatBubbleProps) {
   const { type, content } = message;
 
   if (type === 'system') {
@@ -29,44 +31,61 @@ export default function ChatBubble({ message, isSelf, sender }: ChatBubbleProps)
   }
 
   if (type === 'activity_card') {
-    return <ActivityCardMessage message={message} isSelf={isSelf} sender={sender} />;
+    return <ActivityCardMessage message={message} isSelf={isSelf} sender={sender} onAvatarPress={onAvatarPress} />;
   }
 
   if (type === 'location') {
-    return <LocationMessage message={message} isSelf={isSelf} sender={sender} />;
+    return <LocationMessage message={message} isSelf={isSelf} sender={sender} onAvatarPress={onAvatarPress} />;
   }
 
   return (
     <View style={[styles.msgRow, isSelf ? styles.selfRow : styles.otherRow]}>
-      <Avatar
-        emoji={sender?.emoji ?? '?'}
-        bg={isSelf ? Colors.greenBg : Colors.primaryBg}
-        size={32}
-      />
-      <View
-        style={[
-          styles.textBubble,
-          isSelf ? styles.selfBubble : styles.otherBubble,
-        ]}
+      <TouchableOpacity
+        onPress={() => sender && onAvatarPress?.(sender.id)}
+        disabled={!sender || !onAvatarPress}
+        activeOpacity={0.7}
       >
+        <Avatar
+          emoji={sender?.emoji ?? '?'}
+          bg={isSelf ? Colors.greenBg : Colors.primaryBg}
+          size={32}
+        />
+      </TouchableOpacity>
+      <View style={styles.bubbleCol}>
+        {showSenderName && !isSelf && sender && (
+          <Text style={styles.senderName}>{sender.name}</Text>
+        )}
+        <View
+          style={[
+            styles.textBubble,
+            isSelf ? styles.selfBubble : styles.otherBubble,
+          ]}
+        >
         <Text style={[styles.text, isSelf && styles.selfText]}>{content}</Text>
+        </View>
       </View>
     </View>
   );
 }
 
 /** Activity card embedded in chat */
-function ActivityCardMessage({ message, isSelf, sender }: ChatBubbleProps) {
+function ActivityCardMessage({ message, isSelf, sender, onAvatarPress }: ChatBubbleProps) {
   const { state } = useActivities();
   const activity = state.activities.find((a) => a.id === message.activityId);
 
   return (
     <View style={[styles.msgRow, isSelf ? styles.selfRow : styles.otherRow]}>
-      <Avatar
-        emoji={sender?.emoji ?? '?'}
-        bg={isSelf ? Colors.greenBg : Colors.primaryBg}
-        size={32}
-      />
+      <TouchableOpacity
+        onPress={() => sender && onAvatarPress?.(sender.id)}
+        disabled={!sender || !onAvatarPress}
+        activeOpacity={0.7}
+      >
+        <Avatar
+          emoji={sender?.emoji ?? '?'}
+          bg={isSelf ? Colors.greenBg : Colors.primaryBg}
+          size={32}
+        />
+      </TouchableOpacity>
       <View style={styles.activityCard}>
         <View style={styles.cardTop}>
           <View style={styles.cardIcon}>
@@ -92,14 +111,20 @@ function ActivityCardMessage({ message, isSelf, sender }: ChatBubbleProps) {
 }
 
 /** Location message with map placeholder */
-function LocationMessage({ message, isSelf, sender }: ChatBubbleProps) {
+function LocationMessage({ message, isSelf, sender, onAvatarPress }: ChatBubbleProps) {
   return (
     <View style={[styles.msgRow, isSelf ? styles.selfRow : styles.otherRow]}>
-      <Avatar
-        emoji={sender?.emoji ?? '?'}
-        bg={isSelf ? Colors.greenBg : Colors.primaryBg}
-        size={32}
-      />
+      <TouchableOpacity
+        onPress={() => sender && onAvatarPress?.(sender.id)}
+        disabled={!sender || !onAvatarPress}
+        activeOpacity={0.7}
+      >
+        <Avatar
+          emoji={sender?.emoji ?? '?'}
+          bg={isSelf ? Colors.greenBg : Colors.primaryBg}
+          size={32}
+        />
+      </TouchableOpacity>
       <View style={styles.locationCard}>
         <View style={styles.mapPlaceholder}>
           <Text style={styles.mapIcon}>📍</Text>
@@ -137,6 +162,17 @@ const styles = StyleSheet.create({
   },
   otherRow: {
     alignSelf: 'flex-start',
+  },
+
+  /* Bubble column (sender name + bubble) */
+  bubbleCol: {
+    maxWidth: '100%',
+  },
+  senderName: {
+    ...Typography.small,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+    marginLeft: 4,
   },
 
   /* Text bubble */

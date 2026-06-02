@@ -1,17 +1,18 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
+import { ActivityStatus } from '../../constants/status';
 import { BottomSheet } from '../ui';
 
 interface StatusSheetProps {
   visible: boolean;
   onClose: () => void;
+  activityStatus: ActivityStatus;
   onEdit: () => void;
   onEndEnrollment: () => void;
-  onExtendEnrollment: () => void;
-  onExportMembers: () => void;
+  onCompleteActivity: () => void;
   onCancelActivity: () => void;
 }
 
@@ -25,19 +26,32 @@ interface MenuItem {
 export default function StatusSheet({
   visible,
   onClose,
+  activityStatus,
   onEdit,
   onEndEnrollment,
-  onExtendEnrollment,
-  onExportMembers,
+  onCompleteActivity,
   onCancelActivity,
 }: StatusSheetProps) {
-  const menuItems: MenuItem[] = [
-    { icon: '✏️', label: '编辑活动', onPress: onEdit },
-    { icon: '⏸️', label: '提前结束报名', onPress: onEndEnrollment },
-    { icon: '⏳', label: '延长报名', onPress: onExtendEnrollment },
-    { icon: '📋', label: '导出成员名单', onPress: onExportMembers },
-    { icon: '🚫', label: '取消活动', danger: true, onPress: onCancelActivity },
-  ];
+  const menuItems: MenuItem[] = useMemo(() => {
+    const items: MenuItem[] = [];
+    const active = [ActivityStatus.ENROLLING, ActivityStatus.FULL, ActivityStatus.GROUPED, ActivityStatus.ONGOING];
+
+    items.push({ icon: '✏️', label: '编辑活动', onPress: onEdit });
+
+    if (activityStatus === ActivityStatus.ENROLLING || activityStatus === ActivityStatus.FULL) {
+      items.push({ icon: '✅', label: '结束报名，确认成团', onPress: onEndEnrollment });
+    }
+
+    if (active.includes(activityStatus)) {
+      items.push({ icon: '🎉', label: '标记活动完成', onPress: onCompleteActivity });
+    }
+
+    if (active.includes(activityStatus)) {
+      items.push({ icon: '🚫', label: '取消活动', danger: true, onPress: onCancelActivity });
+    }
+
+    return items;
+  }, [activityStatus, onEdit, onEndEnrollment, onCompleteActivity, onCancelActivity]);
 
   const handleItemPress = (item: MenuItem) => {
     onClose();

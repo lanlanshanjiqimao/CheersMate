@@ -28,6 +28,7 @@ export interface Activity {
   organizerId: string;
   memberIds: string[];
   comments: Comment[];
-  favorited: boolean;
+  favorited?: boolean; // deprecated, kept for migration
+  reviewedUserIds: Record<string, string[]>;
   createdAt: string;
 }

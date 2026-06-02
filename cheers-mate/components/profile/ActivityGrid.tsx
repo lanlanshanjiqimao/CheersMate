@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Activity } from '../../types/activity';
-import { StatusLabels, StatusColors } from '../../constants/status';
+import { ActivityStatus, getStatusColors, getStatusLabel } from '../../constants/status';
 import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius, Shadows } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
@@ -32,9 +32,11 @@ export default function ActivityGrid({ activities, onActivityPress }: ActivityGr
       {rows.map((row, ri) => (
         <View key={ri} style={styles.row}>
           {row.map((item) => {
-            const statusColors = StatusColors[item.status];
+            const statusColors = getStatusColors(item.status);
             const isInactive =
-              item.status === 'ended' || item.status === 'cancelled' || item.status === 'draft';
+              item.status === ActivityStatus.ENDED ||
+              item.status === ActivityStatus.CANCELLED ||
+              item.status === ActivityStatus.COMPLETED;
 
             return (
               <TouchableOpacity
@@ -47,7 +49,7 @@ export default function ActivityGrid({ activities, onActivityPress }: ActivityGr
                   <Text style={styles.cardEmoji}>{item.emoji}</Text>
                   <View style={[styles.statusBadge, { backgroundColor: statusColors.bg }]}>
                     <Text style={[styles.statusText, { color: statusColors.text }]}>
-                      {StatusLabels[item.status]}
+                      {getStatusLabel(item.status)}
                     </Text>
                   </View>
                 </View>

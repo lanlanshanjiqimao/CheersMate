@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "index.ts",
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "sync-server": "node scripts/sync-server.js",
+    "start": "node scripts/sync-server.js & expo start",
+    "android": "node scripts/sync-server.js & expo start --android",
+    "ios": "node scripts/sync-server.js & expo start --ios",
+    "web": "node scripts/sync-server.js & expo start --web"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

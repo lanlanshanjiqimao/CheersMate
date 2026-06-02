@@ -30,8 +30,8 @@ export default function ProfilePage() {
   );
 
   const favoritedActivities = useMemo(
-    () => state.activities.filter((a) => a.favorited),
-    [state.activities],
+    () => state.activities.filter((a) => state.favorites.includes(a.id)),
+    [state.activities, state.favorites],
   );
 
   const displayedActivities =
@@ -69,10 +69,7 @@ export default function ProfilePage() {
           user={user}
           isSelf={true}
           onEdit={() => {
-            // TODO: navigate to edit profile
-          }}
-          onShare={() => {
-            // TODO: share profile
+            router.push('/profile/edit');
           }}
         />
 

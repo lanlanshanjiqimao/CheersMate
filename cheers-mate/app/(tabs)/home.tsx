@@ -37,7 +37,9 @@ export default function HomePage() {
       );
     }
 
-    return result;
+    return result.sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   }, [state.activities, selectedCategory, searchQuery]);
 
   const handleCardPress = useCallback((activity: { id: string }) => {
@@ -58,10 +60,6 @@ export default function HomePage() {
             <Text style={styles.greeting}>Hi, 搭子 👋</Text>
             <Text style={styles.appTitle}>Cheers Mate</Text>
           </View>
-          <TouchableOpacity style={styles.bellButton} activeOpacity={0.7} onPress={() => router.push('/(tabs)/messages')}>
-            <Text style={styles.bellIcon}>🔔</Text>
-            <View style={styles.bellDot} />
-          </TouchableOpacity>
         </View>
 
         <View style={styles.searchWrapper}>
@@ -128,34 +126,6 @@ const styles = StyleSheet.create({
     ...Typography.h2,
     color: Colors.text,
     marginTop: 2,
-  },
-  bellButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Colors.card,
-    justifyContent: 'center',
-    alignItems: 'center',
-    position: 'relative',
-    ...{
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.06,
-      shadowRadius: 6,
-      elevation: 2,
-    },
-  },
-  bellIcon: {
-    fontSize: 20,
-  },
-  bellDot: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.red,
   },
   searchWrapper: {
     paddingHorizontal: Spacing.lg,

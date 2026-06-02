@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,13 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
 import { ActivityStatus } from '../../constants/status';
 import { useActivities } from '../../contexts/ActivityContext';
+import { useChat } from '../../contexts/ChatContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { generateId } from '../../utils/helpers';
 import { StickyNav } from '../../components/ui';
@@ -48,54 +49,111 @@ const initialForm: FormState = {
 };
 
 export default function CreateActivityPage() {
-  const { dispatch } = useActivities();
+  const { dispatch, state } = useActivities();
+  const { dispatch: chatDispatch } = useChat();
   const { user } = useAuth();
-  const [form, setForm] = useState<FormState>(initialForm);
+  const { editId } = useLocalSearchParams<{ editId?: string }>();
 
-  if (!user) return null;
+  const existingActivity = useMemo(
+    () => (editId ? state.activities.find((a) => a.id === editId) : null),
+    [editId, state.activities],
+  );
+
+  const isEditing = !!existingActivity;
+
+  const [form, setForm] = useState<FormState>(() => {
+    if (existingActivity) {
+      return {
+        title: existingActivity.title,
+        emoji: existingActivity.emoji,
+        category: existingActivity.category,
+        date: existingActivity.date,
+        time: existingActivity.time,
+        location: existingActivity.location,
+        maxPeople: String(existingActivity.maxPeople),
+        cost: existingActivity.cost,
+        requirements: existingActivity.requirements,
+        description: existingActivity.description,
+      };
+    }
+    return initialForm;
+  });
 
   const updateField = useCallback(<K extends keyof FormState>(key: K, value: FormState[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   }, []);
 
   const handlePublish = useCallback(() => {
-    if (!form.title.trim() || !form.category || !form.date.trim() || !form.location.trim()) {
+    if (!form.title.trim() || !form.category || !form.date.trim() || !form.location.trim() || !user) {
       return;
     }
 
-    const newActivity = {
-      id: generateId(),
-      title: form.title.trim(),
-      emoji: form.emoji || '🎯',
-      status: ActivityStatus.ENROLLING,
-      category: form.category,
-      tags: [form.category],
-      date: form.date.trim(),
-      time: form.time.trim(),
-      location: form.location.trim(),
-      currentPeople: 1,
-      maxPeople: parseInt(form.maxPeople, 10) || 6,
-      cost: form.cost.trim() || '免费',
-      requirements: form.requirements.trim() || '不限',
-      description: form.description.trim(),
-      organizerId: user.id,
-      memberIds: [],
-      comments: [],
-      favorited: false,
-      createdAt: new Date().toISOString(),
-    };
+    if (isEditing && existingActivity) {
+      dispatch({
+        type: 'UPDATE',
+        payload: {
+          ...existingActivity,
+          title: form.title.trim(),
+          emoji: form.emoji || '🎯',
+          category: form.category,
+          tags: [form.category],
+          date: form.date.trim(),
+          time: form.time.trim(),
+          location: form.location.trim(),
+          maxPeople: parseInt(form.maxPeople, 10) || existingActivity.maxPeople,
+          cost: form.cost.trim() || '免费',
+          requirements: form.requirements.trim() || '不限',
+          description: form.description.trim(),
+        },
+      });
+    } else {
+      const newActivity = {
+        id: generateId(),
+        title: form.title.trim(),
+        emoji: form.emoji || '🎯',
+        status: ActivityStatus.ENROLLING,
+        category: form.category,
+        tags: [form.category],
+        date: form.date.trim(),
+        time: form.time.trim(),
+        location: form.location.trim(),
+        currentPeople: 1,
+        maxPeople: parseInt(form.maxPeople, 10) || 6,
+        cost: form.cost.trim() || '免费',
+        requirements: form.requirements.trim() || '不限',
+        description: form.description.trim(),
+        organizerId: user.id,
+        memberIds: [],
+        comments: [],
+        favorited: false,
+        reviewedUserIds: {},
+        createdAt: new Date().toISOString(),
+      };
 
-    dispatch({ type: 'CREATE', payload: newActivity });
+      dispatch({ type: 'CREATE', payload: newActivity });
+      chatDispatch({
+        type: 'CREATE_GROUP_CHAT',
+        payload: {
+          activityId: newActivity.id,
+          activityTitle: newActivity.title,
+          activityEmoji: newActivity.emoji,
+          organizerId: user.id,
+        },
+      });
+    }
+
     router.back();
-  }, [form, user.id, dispatch]);
+  }, [form, user, dispatch, isEditing, existingActivity]);
 
   const isPublishDisabled =
     !form.title.trim() || !form.category || !form.date.trim() || !form.location.trim();
 
+  if (!user) return null;
+
   return (
     <View style={styles.container}>
       <StickyNav
-        title="发布活动"
+        title={isEditing ? '编辑活动' : '发布活动'}
         onBack={() => router.back()}
       />
 
@@ -284,7 +342,7 @@ export default function CreateActivityPage() {
           <Text
             style={[styles.publishBtnText, isPublishDisabled && styles.publishBtnTextDisabled]}
           >
-            发布
+            {isEditing ? '保存' : '发布'}
           </Text>
         </TouchableOpacity>
       </View>

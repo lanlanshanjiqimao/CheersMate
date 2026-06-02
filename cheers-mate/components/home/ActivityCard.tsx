@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Activity } from '../../types/activity';
-import { StatusLabels, StatusColors } from '../../constants/status';
+import { ActivityStatus, getStatusColors, getStatusLabel } from '../../constants/status';
 import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius, Shadows } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
@@ -15,9 +15,11 @@ interface ActivityCardProps {
 }
 
 export default function ActivityCard({ activity, onPress }: ActivityCardProps) {
-  const statusColors = StatusColors[activity.status];
+  const statusColors = getStatusColors(activity.status);
   const isInactive =
-    activity.status === 'ended' || activity.status === 'cancelled' || activity.status === 'draft';
+    activity.status === ActivityStatus.ENDED ||
+    activity.status === ActivityStatus.CANCELLED ||
+    activity.status === ActivityStatus.COMPLETED;
 
   return (
     <Card
@@ -28,7 +30,7 @@ export default function ActivityCard({ activity, onPress }: ActivityCardProps) {
       <View style={styles.headerRow}>
         <Text style={styles.emoji}>{activity.emoji}</Text>
         <Badge
-          label={StatusLabels[activity.status]}
+          label={getStatusLabel(activity.status)}
           bg={statusColors.bg}
           color={statusColors.text}
         />

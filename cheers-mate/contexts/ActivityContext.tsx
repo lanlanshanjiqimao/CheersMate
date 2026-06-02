@@ -1,4 +1,4 @@
-import { createContext, useContext, useReducer, useEffect } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { Activity, Comment } from '../types/activity';
 import { getItem, setItem, STORAGE_KEYS } from '../services/storage';
 import { fileGet, fileSet } from '../services/fileSync';
@@ -7,20 +7,23 @@ import { ActivityStatus } from '../constants/status';
 
 interface ActivityState {
   activities: Activity[];
-  favorites: string[];
+  favorites: string[]; // per-user, managed via storage key
 }
 
 type Action =
   | { type: 'HYDRATE'; payload: ActivityState }
+  | { type: 'SET_FAVORITES'; payload: string[] }
   | { type: 'JOIN'; payload: { activityId: string; userId: string } }
   | { type: 'LEAVE'; payload: { activityId: string; userId: string } }
   | { type: 'CREATE'; payload: Activity }
+  | { type: 'UPDATE'; payload: Activity }
   | { type: 'UPDATE_STATUS'; payload: { activityId: string; status: ActivityStatus } }
   | { type: 'REMOVE_MEMBER'; payload: { activityId: string; userId: string } }
   | { type: 'TOGGLE_FAVORITE'; payload: string }
   | { type: 'ADD_COMMENT'; payload: { activityId: string; userId: string; content: string } }
   | { type: 'PIN_COMMENT'; payload: { activityId: string; commentId: string } }
-  | { type: 'DELETE_COMMENT'; payload: { activityId: string; commentId: string } };
+  | { type: 'DELETE_COMMENT'; payload: { activityId: string; commentId: string } }
+  | { type: 'MARK_REVIEWED'; payload: { activityId: string; reviewerId: string; revieweeIds: string[] } };
 
 const initialState: ActivityState = {
   activities: [],
@@ -31,6 +34,9 @@ function activityReducer(state: ActivityState, action: Action): ActivityState {
   switch (action.type) {
     case 'HYDRATE':
       return action.payload;
+
+    case 'SET_FAVORITES':
+      return { ...state, favorites: action.payload };
 
     case 'JOIN': {
       const { activityId, userId } = action.payload;
@@ -58,6 +64,14 @@ function activityReducer(state: ActivityState, action: Action): ActivityState {
 
     case 'CREATE':
       return { ...state, activities: [...state.activities, action.payload] };
+
+    case 'UPDATE':
+      return {
+        ...state,
+        activities: state.activities.map((a) =>
+          a.id === action.payload.id ? action.payload : a,
+        ),
+      };
 
     case 'UPDATE_STATUS': {
       const { activityId, status } = action.payload;
@@ -88,9 +102,6 @@ function activityReducer(state: ActivityState, action: Action): ActivityState {
         favorites: state.favorites.includes(id)
           ? state.favorites.filter((fid) => fid !== id)
           : [...state.favorites, id],
-        activities: state.activities.map((a) =>
-          a.id === id ? { ...a, favorited: !a.favorited } : a,
-        ),
       };
     }
 
@@ -141,6 +152,18 @@ function activityReducer(state: ActivityState, action: Action): ActivityState {
       };
     }
 
+    case 'MARK_REVIEWED': {
+      const { activityId, reviewerId, revieweeIds } = action.payload;
+      return {
+        ...state,
+        activities: state.activities.map((a) =>
+          a.id === activityId
+            ? { ...a, reviewedUserIds: { ...a.reviewedUserIds, [reviewerId]: revieweeIds } }
+            : a,
+        ),
+      };
+    }
+
     default:
       return state;
   }
@@ -155,26 +178,85 @@ const ActivityContext = createContext<ActivityContextValue | null>(null);
 
 export function ActivityProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(activityReducer, initialState);
+  const hydrated = useRef(false);
+  const currentUserId = useRef<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      // Try AsyncStorage first
+      // Read current user ID to scope favorites
+      const authData = await getItem<{ currentUserId: string }>(STORAGE_KEYS.AUTH);
+      const userId = authData?.currentUserId ?? null;
+      currentUserId.current = userId;
+
+      // Load activities (shared across all users)
       let stored = await getItem<ActivityState>(STORAGE_KEYS.ACTIVITIES);
-      // If empty, try file server
-      if (!stored || (stored.activities.length === 0)) {
-        const fileData = await fileGet<ActivityState>('activities');
-        if (fileData && fileData.activities.length > 0) {
+      const fileData = await fileGet<ActivityState>('activities');
+      if (fileData && fileData.activities.length > 0) {
+        if (!stored || stored.activities.length === 0) {
           stored = fileData;
-          await setItem(STORAGE_KEYS.ACTIVITIES, stored);
+        } else {
+          const localIds = new Set(stored.activities.map((a) => a.id));
+          let merged = false;
+          for (const a of fileData.activities) {
+            if (!localIds.has(a.id)) {
+              stored.activities.push(a);
+              merged = true;
+            }
+          }
+          if (merged) {
+            stored = { ...stored, activities: [...stored.activities] };
+          }
+        }
+        await setItem(STORAGE_KEYS.ACTIVITIES, stored);
+      }
+
+      // Load favorites (per user)
+      let favorites: string[] = [];
+      if (userId) {
+        const favKey = `favorites_${userId}`;
+        favorites = await getItem<string[]>(favKey) ?? [];
+        const fileFavs = await fileGet<string[]>(`favorites_${userId}`);
+        if (fileFavs && fileFavs.length > 0) {
+          const favSet = new Set(favorites);
+          let changed = false;
+          for (const f of fileFavs) {
+            if (!favSet.has(f)) { favorites.push(f); changed = true; }
+          }
+          if (changed) await setItem(favKey, favorites);
         }
       }
-      if (stored) dispatch({ type: 'HYDRATE', payload: stored });
+
+      if (stored) {
+        // Migrate: ensure all activities have reviewedUserIds
+        let migrated = false;
+        for (const a of stored.activities) {
+          if (a.reviewedUserIds === undefined) { a.reviewedUserIds = {}; migrated = true; }
+        }
+        if (migrated) {
+          await setItem(STORAGE_KEYS.ACTIVITIES, stored);
+          fileSet('activities', stored);
+        }
+        dispatch({ type: 'HYDRATE', payload: { ...stored, favorites } });
+      } else {
+        dispatch({ type: 'SET_FAVORITES', payload: favorites });
+      }
+      hydrated.current = true;
     })();
   }, []);
 
   useEffect(() => {
-    setItem(STORAGE_KEYS.ACTIVITIES, state);
-    fileSet('activities', state);
+    if (!hydrated.current) return;
+    const userId = currentUserId.current;
+    // Save activities (shared) — strip favorites out
+    const { favorites, ...activityData } = state;
+    setItem(STORAGE_KEYS.ACTIVITIES, { ...activityData, favorites: [] });
+    fileSet('activities', { ...activityData, favorites: [] });
+    // Save favorites (per user)
+    if (userId) {
+      const favKey = `favorites_${userId}`;
+      setItem(favKey, favorites);
+      fileSet(`favorites_${userId}`, favorites);
+    }
   }, [state]);
 
   return (

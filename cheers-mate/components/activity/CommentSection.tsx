@@ -23,6 +23,7 @@ interface CommentSectionProps {
   onDeleteComment: (commentId: string) => void;
   currentUserId: string;
   getUserById: (id: string) => User | undefined;
+  onUserPress?: (userId: string) => void;
 }
 
 export default function CommentSection({
@@ -33,6 +34,7 @@ export default function CommentSection({
   onDeleteComment,
   currentUserId,
   getUserById,
+  onUserPress,
 }: CommentSectionProps) {
   const [inputText, setInputText] = useState('');
 
@@ -71,7 +73,13 @@ export default function CommentSection({
                 <Text style={styles.pinBadge}>📌 置顶</Text>
               )}
               <View style={styles.commentInner}>
-                <Avatar emoji={author.emoji} bg={author.emojiBg} size={32} />
+                <TouchableOpacity
+                  onPress={() => onUserPress?.(comment.userId)}
+                  disabled={!onUserPress}
+                  activeOpacity={0.7}
+                >
+                  <Avatar emoji={author.emoji} bg={author.emojiBg} size={32} />
+                </TouchableOpacity>
                 <View style={styles.commentBody}>
                   <View style={styles.meta}>
                     <Text style={styles.name}>{author.name}</Text>

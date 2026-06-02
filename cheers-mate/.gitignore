@@ -40,8 +40,6 @@ yarn-error.*
 # generated native folders
 /ios
 /android
-data/credentials.local.json
-data/users.local.json
-data/activities.local.json
-data/chat.local.json
-data/auth.local.json
+
+# local data files (user data, credentials, chat)
+data/*.local.json

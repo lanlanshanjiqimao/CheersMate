@@ -22,7 +22,13 @@ export default function MessagesPage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const sorted = [...state.conversations].sort(
+  const myConversations = state.conversations.filter((c) => {
+    if (!user) return false;
+    if (c.type === 'system') return true;
+    return c.participantIds.includes(user.id);
+  });
+
+  const sorted = [...myConversations].sort(
     (a, b) => TYPE_ORDER[a.type] - TYPE_ORDER[b.type],
   );
 
@@ -41,9 +47,16 @@ export default function MessagesPage() {
         currentUserId={user?.id ?? ''}
         getUserById={getUserById}
         onPress={() => handlePress(item.id)}
+        onAvatarPress={(userId) => {
+          if (userId === user?.id) {
+            router.push('/(tabs)/profile');
+          } else {
+            router.push(`/user/${userId}`);
+          }
+        }}
       />
     ),
-    [handlePress, user?.id, getUserById],
+    [handlePress, user?.id, getUserById, router],
   );
 
   return (

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
-import { ActivityStatus, StatusLabels, StatusColors } from '../../constants/status';
+import { ActivityStatus, StatusLabels, StatusColors, getStatusColors, getStatusLabel } from '../../constants/status';
 import { Activity } from '../../types/activity';
 
 interface ActivityHeroProps {
@@ -13,8 +13,8 @@ interface ActivityHeroProps {
 }
 
 export default function ActivityHero({ activity, isOrganizer, onEdit }: ActivityHeroProps) {
-  const statusColor = StatusColors[activity.status];
-  const statusLabel = StatusLabels[activity.status];
+  const statusColor = getStatusColors(activity.status);
+  const statusLabel = getStatusLabel(activity.status);
 
   return (
     <View style={styles.hero}>

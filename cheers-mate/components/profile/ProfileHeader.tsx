@@ -4,13 +4,13 @@ import { User } from '../../types/user';
 import { Colors } from '../../constants/colors';
 import { Spacing, BorderRadius } from '../../constants/spacing';
 import { Typography } from '../../constants/typography';
+import { getTopTags } from '../../utils/helpers';
 import TagWall from './TagWall';
 
 interface ProfileHeaderProps {
   user: User;
   isSelf: boolean;
   onEdit?: () => void;
-  onShare?: () => void;
   onFollow?: () => void;
   onMessage?: () => void;
 }
@@ -31,7 +31,6 @@ export default function ProfileHeader({
   user,
   isSelf,
   onEdit,
-  onShare,
   onFollow,
   onMessage,
 }: ProfileHeaderProps) {
@@ -45,6 +44,9 @@ export default function ProfileHeader({
       {/* Name */}
       <Text style={styles.name}>{user.name}</Text>
 
+      {/* Bio */}
+      {user.bio ? <Text style={styles.bio}>{user.bio}</Text> : null}
+
       {/* Rating + Activity count */}
       <View style={styles.statsRow}>
         <Text style={styles.stars}>{renderStars(user.rating)}</Text>
@@ -54,6 +56,20 @@ export default function ProfileHeader({
           <Text style={styles.statValue}>{user.activityCount}</Text> 次活动
         </Text>
       </View>
+
+      {/* Review tags */}
+      {(() => {
+        const topTags = getTopTags(user.reviews);
+        return topTags.length > 0 ? (
+          <View style={styles.reviewTagsContainer}>
+            {topTags.map((tag) => (
+              <View key={tag} style={styles.reviewTagPill}>
+                <Text style={styles.reviewTagText}>{tag}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null;
+      })()}
 
       {/* Tags */}
       <View style={styles.tagsContainer}>
@@ -69,13 +85,6 @@ export default function ProfileHeader({
             activeOpacity={0.7}
           >
             <Text style={styles.editButtonText}>编辑</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.shareButton}
-            onPress={onShare}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.shareButtonText}>分享</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -121,7 +130,15 @@ const styles = StyleSheet.create({
   name: {
     ...Typography.h2,
     color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  bio: {
+    ...Typography.caption,
+    color: Colors.textSecondary,
+    textAlign: 'center',
     marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.lg,
+    lineHeight: 20,
   },
   statsRow: {
     flexDirection: 'row',
@@ -157,12 +174,30 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     alignItems: 'center',
   },
+  reviewTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: Spacing.sm,
+  },
+  reviewTagPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.orangeBg,
+  },
+  reviewTagText: {
+    ...Typography.small,
+    color: Colors.orange,
+    fontWeight: '500',
+  },
   buttonRow: {
     flexDirection: 'row',
     gap: Spacing.md,
     width: '100%',
   },
-  // Self buttons
+  // Self button
   editButton: {
     flex: 1,
     backgroundColor: Colors.primary,
@@ -174,18 +209,6 @@ const styles = StyleSheet.create({
   editButtonText: {
     ...Typography.bodyBold,
     color: '#FFFFFF',
-  },
-  shareButton: {
-    flex: 1,
-    backgroundColor: Colors.primaryBg,
-    paddingVertical: Spacing.md,
-    borderRadius: BorderRadius.button,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shareButtonText: {
-    ...Typography.bodyBold,
-    color: Colors.primary,
   },
   // Other user buttons
   followButton: {

@@ -18,7 +18,9 @@ export default function RootLayout() {
                 <Stack.Screen name="activity/[id]" options={{ headerShown: false }} />
                 <Stack.Screen name="activity/create" options={{ headerShown: false, presentation: 'modal' }} />
                 <Stack.Screen name="auth" options={{ headerShown: false }} />
+                <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
                 <Stack.Screen name="chat/[id]" options={{ headerShown: false }} />
+                <Stack.Screen name="activity/review/[id]" options={{ headerShown: false, presentation: 'modal' }} />
                 <Stack.Screen name="user/[id]" options={{ headerShown: false }} />
               </Stack>
             </ChatProvider>
